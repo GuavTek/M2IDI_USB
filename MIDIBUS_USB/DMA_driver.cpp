@@ -26,7 +26,7 @@ void dma_init(DMA_Descriptor_t* base_address, DMA_Descriptor_t* wrb_address){
 						DMAC_CTRL_LVLEN2;
 	
 	DMAC->PRICTRL0.bit.RRLVLEN2 = 1;
-	DMAC->QOSCTRL.reg = DMAC_QOSCTRL_DQOS_LOW | DMAC_QOSCTRL_FQOS_MEDIUM;
+	DMAC->QOSCTRL.reg = DMAC_QOSCTRL_DQOS_HIGH | DMAC_QOSCTRL_FQOS_HIGH;
 	DMAC->BASEADDR.reg = (uint32_t) base_address;
 	DMAC->WRBADDR.reg = (uint32_t) wrb_address;
 	
