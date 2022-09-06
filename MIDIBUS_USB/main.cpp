@@ -38,6 +38,7 @@ volatile uint32_t system_ticks = 0;
 
 // For debugging
 volatile Dmac* tempDMA = DMAC;
+volatile Usb* tempUSB = USB;
 volatile uint64_t dropped_bytes = 0;
 volatile I2s* tempI2S = I2S;
 volatile uint64_t txufl_count = 0;
