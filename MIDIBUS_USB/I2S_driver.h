@@ -33,4 +33,7 @@ void i2s_set_freq(uint32_t samplerate);
 void i2s_set_output_wordsize(uint8_t size);
 void i2s_set_input_wordsize(uint8_t size);
 
+// Compensate for inaccurate reference clock
+void i2s_adjust_freq(int32_t delta);
+
 #endif /* I2S_DRIVER_H_ */

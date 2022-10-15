@@ -15,6 +15,9 @@ DMA_Descriptor_t* i2s_tx_descriptor_a = &base_descriptor[1];
 DMA_Descriptor_t* i2s_tx_descriptor_b = &transact_descriptor[1];
 DMA_Descriptor_t* i2s_tx_descriptor_wb = &wrback_descriptor[1];
 
+int32_t compensateFreq = 0;
+uint32_t fs_samplerate;
+
 void i2s_init(const uint32_t samplerate){
 	// Set up pin functions
 	PORT->Group[0].DIRCLR.reg = 1 << 7;
@@ -51,7 +54,7 @@ void i2s_init(const uint32_t samplerate){
 	I2S->CLKCTRL[0].reg =	I2S_CLKCTRL_SLOTSIZE_32 |
 							I2S_CLKCTRL_NBSLOTS(1) |
 							I2S_CLKCTRL_BITDELAY_I2S |
-							I2S_CLKCTRL_FSWIDTH_HALF |
+							I2S_CLKCTRL_FSWIDTH_SLOT |
 							I2S_CLKCTRL_MCKSEL_GCLK | 
 							I2S_CLKCTRL_MCKOUTDIV(0) |
 							I2S_CLKCTRL_SCKSEL_MCKDIV | 
@@ -98,18 +101,17 @@ void i2s_init(const uint32_t samplerate){
 	
 	// Write dummy data
 	while(I2S->SYNCBUSY.bit.SEREN1);
-	I2S->DATA[1].reg = 0;
+	//I2S->DATA[1].reg = 0;
 
 }
 
-void i2s_set_freq(uint32_t samplerate) {
-	
+void i2s_set_freq(){
 	uint32_t tmpldr;
 	uint8_t  tmpldrfrac;
 	uint32_t refclk = 32768;
 	
 	/* Calculate LDRFRAC and LDR */
-	uint64_t output_frequency = samplerate * 384;
+	uint64_t output_frequency = (fs_samplerate + compensateFreq) * 384;
 	tmpldr = (output_frequency << 4) / refclk;
 	tmpldrfrac = tmpldr & 0x0f;
 	tmpldr = (tmpldr >> 4) - 1;
@@ -117,7 +119,17 @@ void i2s_set_freq(uint32_t samplerate) {
 	SYSCTRL->DPLLRATIO.reg =
 	SYSCTRL_DPLLRATIO_LDRFRAC(tmpldrfrac) |
 	SYSCTRL_DPLLRATIO_LDR(tmpldr);
+}
 
+void i2s_set_freq(uint32_t samplerate) {
+	fs_samplerate = samplerate;
+	i2s_set_freq();
+}
+
+// Compensate for inaccurate reference clock
+void i2s_adjust_freq(int32_t delta){
+	compensateFreq += delta;
+	i2s_set_freq();
 }
 
 void i2s_set_output_wordsize(uint8_t size){
