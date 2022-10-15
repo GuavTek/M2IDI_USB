@@ -60,6 +60,9 @@ uint32_t* const spk_buf_hi = (uint32_t*) &spk_buf[spk_buf_size/2];
 // Speaker data size received in the last frame
 int16_t spk_data_new;
 
+// Mic data waiting to be sent
+int16_t mic_data_pend;
+
 // Resolution per format
 const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX,
 CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX};
@@ -331,14 +334,34 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 	return true;
 }
 
-bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting)
-{
+bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting){
 	(void)rhport;
 	(void)func_id;
 	(void)ep_out;
 	(void)cur_alt_setting;
 	
+	if (spk_data_new > 0){
+		i2s_adjust_freq((spk_data_new / spk_buf_size)-1);
+	}
+	
 	spk_data_new += n_bytes_received;
+	
+	return true;
+}
+
+bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uint8_t func_id, uint8_t ep_in, uint8_t cur_alt_setting){
+	(void)rhport;
+	(void)func_id;
+	(void)ep_in;
+	(void)cur_alt_setting;
+	
+	mic_data_pend -= n_bytes_copied;
+	
+	if (mic_data_pend > 0){
+		i2s_adjust_freq(1-(mic_data_pend / mic_buf_size));
+	} else {
+		i2s_adjust_freq(1);
+	}
 	
 	return true;
 }
@@ -442,10 +465,16 @@ void audio_task(void)
 				dma_set_descriptor(i2s_tx_descriptor_b, new_data_size, spk_buf_hi, i2s_tx_reg, i2s_tx_descriptor_a, tempCtrl);
 			}
 		}
-		
 	}
 	
 	if (spk_active){
+		// underflow?
+		if (I2S->INTFLAG.bit.TXUR1){
+			I2S->INTFLAG.bit.TXUR1 = 1;
+			i2s_adjust_freq(-1);
+		}
+		
+		// Restart DMA
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
 		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin)){
@@ -478,9 +507,10 @@ void audio_task(void)
 			tempCtrl.dstinc = 1;
 			tempCtrl.valid = 1;
 			
-			tud_audio_write(mic_buf_lo, mic_buf_size * 2 );
-			
-			
+			uint16_t tempData;
+			tempData = tud_audio_write(mic_buf_lo, mic_buf_size * 2 );
+			mic_data_pend += tempData;
+
 			//dma_set_descriptor(i2s_rx_descriptor_a, ((mic_buf_size*2) >> data_shift), i2s_rx_reg, mic_buf_lo, i2s_rx_descriptor_b, tempCtrl);
 			dma_set_descriptor(i2s_rx_descriptor_a, ((mic_buf_size*2) >> data_shift), data_shift);
 		} else if ( (!i2s_rx_descriptor_b->btctrl.valid) && (i2s_rx_descriptor_wb->next_descriptor != i2s_rx_descriptor_a) ){
@@ -494,8 +524,10 @@ void audio_task(void)
 			tempCtrl.dstinc = 1;
 			tempCtrl.valid = 1;
 			
-			tud_audio_write(mic_buf_hi, mic_buf_size * 2 );
-			
+			uint16_t tempData;
+			tempData = tud_audio_write(mic_buf_hi, mic_buf_size * 2 );
+			mic_data_pend += tempData;
+
 			//dma_set_descriptor(i2s_rx_descriptor_b, ((mic_buf_size*2) >> data_shift), i2s_rx_reg, mic_buf_hi, i2s_rx_descriptor_a, tempCtrl);
 			dma_set_descriptor(i2s_rx_descriptor_b, ((mic_buf_size*2) >> data_shift), data_shift);
 		}
