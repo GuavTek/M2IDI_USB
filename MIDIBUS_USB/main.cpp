@@ -38,7 +38,7 @@ volatile uint32_t system_ticks = 0;
 
 // For debugging
 volatile Dmac* tempDMA = DMAC;
-volatile uint64_t dropped_bytes = 0;
+volatile int64_t dropped_bytes = 0;
 volatile I2s* tempI2S = I2S;
 volatile uint64_t txufl_count = 0;
 volatile uint64_t rxofl_count = 0;
@@ -229,11 +229,10 @@ uint32_t board_millis(void)
 }
 
 void DMAC_Handler(){
-	uint32_t tempFlag = DMAC->INTPEND.reg;
-	tempFlag &= DMAC_INTPEND_ID_Msk;
+	uint32_t tempFlag = DMAC->INTPEND.bit.ID;
+	DMAC->CHID.reg = tempFlag;
 	
 	dma_resume(tempFlag);
-	DMAC->CHID.reg = tempFlag;
 	DMAC->CHINTENCLR.bit.SUSP = 1;
 }
 

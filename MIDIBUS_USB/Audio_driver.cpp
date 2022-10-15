@@ -12,7 +12,7 @@ bool spk_active = false;
 
 extern uint32_t blinkTime;
 extern uint32_t blinkTime2;
-extern volatile uint64_t dropped_bytes;
+extern volatile int64_t dropped_bytes;
 
 // Supported sample rates
 const uint32_t sample_rates[] = {44100, 48000, 88200, 96000};
@@ -468,28 +468,13 @@ void audio_task(void)
 	}
 	
 	if (spk_active){
-		// underflow?
-		if (I2S->INTFLAG.bit.TXUR1){
-			I2S->INTFLAG.bit.TXUR1 = 1;
-			i2s_adjust_freq(-1);
-		}
-		
 		// Restart DMA
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin)){
-			bool state;
-			uint32_t tempReg = DMAC->ACTIVE.reg;
-			if ((tempReg & DMAC_ACTIVE_ID_Msk) == 1){
-				state = (bool)(tempReg & (0x1 << DMAC_ACTIVE_BTCNT_Pos));
-			} else {
-				state = (bool)(i2s_tx_descriptor_wb->beatcount & 0x1);
-			}
-			if (state == fs_pin){
-				dma_resume(1);
-				DMAC->CHID.reg = 1;
-				DMAC->CHINTENSET.bit.SUSP = 1;
-			}
+		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin) && (fs_pin == 1)){
+			DMAC->CHID.reg = 1;
+			dma_resume(1);
+			DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
 		
@@ -534,21 +519,11 @@ void audio_task(void)
 		
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if (!DMAC->BUSYCH.bit.BUSYCH0 && (fs_prev != fs_pin)){
-			bool state;
-			uint32_t tempReg = DMAC->ACTIVE.reg;
-			if ((tempReg & DMAC_ACTIVE_ID_Msk) == 0){
-				state = (bool)(tempReg & (0x1 << DMAC_ACTIVE_BTCNT_Pos));
-			} else {
-				state = (bool)(i2s_rx_descriptor_wb->beatcount & 0x1);
-			}
-			fs_pin = PORT->Group[0].IN.reg & (1 << 11);
-			if (state == fs_pin){
-				// Resume channel
-				dma_resume(0);
-				DMAC->CHID.reg = 0;
-				DMAC->CHINTENSET.bit.SUSP = 1;
-			}
+		if (!DMAC->BUSYCH.bit.BUSYCH0 && (fs_prev != fs_pin) && (fs_pin == 0)){
+			// Resume channel
+			DMAC->CHID.reg = 0;
+			dma_resume(0);
+			DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
 		
