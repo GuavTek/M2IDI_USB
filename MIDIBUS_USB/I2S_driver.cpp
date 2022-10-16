@@ -111,7 +111,7 @@ void i2s_set_freq(){
 	uint32_t refclk = 32768;
 	
 	/* Calculate LDRFRAC and LDR */
-	uint64_t output_frequency = fs_samplerate * 384 + compensateFreq;
+	uint64_t output_frequency = fs_samplerate * 384 + (compensateFreq >> 4);
 	tmpldr = (output_frequency << 4) / refclk;
 	tmpldrfrac = tmpldr & 0x0f;
 	tmpldr = (tmpldr >> 4) - 1;
