@@ -111,7 +111,7 @@ void i2s_set_freq(){
 	uint32_t refclk = 32768;
 	
 	/* Calculate LDRFRAC and LDR */
-	uint64_t output_frequency = fs_samplerate * 384 - 100000;// + compensateFreq;
+	uint64_t output_frequency = fs_samplerate * 384 + compensateFreq;
 	tmpldr = (output_frequency << 4) / refclk;
 	tmpldrfrac = tmpldr & 0x0f;
 	tmpldr = (tmpldr >> 4) - 1;
@@ -129,7 +129,7 @@ void i2s_set_freq(uint32_t samplerate) {
 // Compensate for inaccurate reference clock
 void i2s_adjust_freq(int32_t delta){
 	compensateFreq += delta;
-	//i2s_set_freq();
+	i2s_set_freq();
 }
 
 void i2s_set_output_wordsize(uint8_t size){

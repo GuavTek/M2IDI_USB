@@ -228,14 +228,6 @@ uint32_t board_millis(void)
 	return system_ticks;
 }
 
-void DMAC_Handler(){
-	uint32_t tempFlag = DMAC->INTPEND.bit.ID;
-	DMAC->CHID.reg = tempFlag;
-	
-	dma_resume(tempFlag);
-	DMAC->CHINTENCLR.bit.SUSP = 1;
-}
-
 void USB_Handler(void){
 	tud_int_handler(0);
 	

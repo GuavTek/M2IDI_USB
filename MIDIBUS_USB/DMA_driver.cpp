@@ -30,7 +30,7 @@ void dma_init(DMA_Descriptor_t* base_address, DMA_Descriptor_t* wrb_address){
 	DMAC->BASEADDR.reg = (uint32_t) base_address;
 	DMAC->WRBADDR.reg = (uint32_t) wrb_address;
 	
-	NVIC_EnableIRQ(DMAC_IRQn);
+	//NVIC_EnableIRQ(DMAC_IRQn);
 	
 	// Enable DMA
 	DMAC->CTRL.bit.DMAENABLE = 1;
@@ -61,5 +61,19 @@ void dma_attach(uint8_t channel, const DMA_Channel_config config){
 void dma_detach(uint8_t channel){
 	DMAC->CHID.reg = channel;
 	DMAC->CHCTRLA.bit.ENABLE = 0;
+}
+
+void DMAC_Handler(){
+	uint32_t tempFlag = DMAC->INTPEND.bit.ID;
+	DMAC->CHID.reg = tempFlag;
+//  	if (!wrback_descriptor[tempFlag].btctrl.valid){
+//  		DMAC->CHINTENCLR.bit.SUSP = 1;
+//  		return;
+//  	}
+	
+	PORT->Group[0].OUTTGL.reg = 1 << 17;
+	
+	dma_resume(tempFlag);
+	DMAC->CHINTENCLR.bit.SUSP = 1;
 }
 

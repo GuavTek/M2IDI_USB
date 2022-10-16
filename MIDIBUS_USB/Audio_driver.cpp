@@ -326,6 +326,7 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 		// Attach DMA
 		//dma_resume(0);
 		
+		mic_data_pend = 0;
 		i2s_rx_descriptor_a->btctrl.valid = 0;
 		i2s_rx_descriptor_b->btctrl.valid = 0;
 		mic_active = true;
@@ -339,10 +340,10 @@ bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, ui
 	(void)func_id;
 	(void)ep_out;
 	(void)cur_alt_setting;
+
+	const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 2) / spk_buf_size - 1;
 	
-	if (spk_data_new > 0){
-		i2s_adjust_freq((spk_data_new / spk_buf_size)-1);
-	}
+	i2s_adjust_freq((spk_data_new /(spk_buf_size))-midPoint);
 	
 	spk_data_new += n_bytes_received;
 	
@@ -357,12 +358,12 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	
 	mic_data_pend -= n_bytes_copied;
 	
-	if (mic_data_pend > 0){
-		i2s_adjust_freq(1-(mic_data_pend / mic_buf_size));
-	} else {
-		i2s_adjust_freq(1);
+	const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ / 2) / mic_buf_size - 1;
+
+	if (!spk_active){
+		i2s_adjust_freq(midPoint-(mic_data_pend /(mic_buf_size)));
 	}
-	
+		
 	return true;
 }
 
@@ -433,8 +434,10 @@ void audio_task(void)
 	
 			uint16_t new_data_size;
 			new_data_size = tud_audio_read(spk_buf_lo, spk_buf_size * 2 );
+			spk_data_new -= new_data_size;
+			
 			new_data_size >>= data_shift;
-			spk_data_new -= new_data_size << data_shift;
+			new_data_size &= 0xfffe;
 			
 			if (new_data_size == 0){
 				dropped_bytes += spk_data_new;
@@ -455,8 +458,10 @@ void audio_task(void)
 			
 			uint16_t new_data_size;
 			new_data_size = tud_audio_read(spk_buf_hi, spk_buf_size * 2 );
+			spk_data_new -= new_data_size;
+			
 			new_data_size >>= data_shift;
-			spk_data_new -= new_data_size << data_shift;
+			new_data_size &= 0xfffe;
 			
 			if (new_data_size == 0){
 				dropped_bytes += spk_data_new;
@@ -469,9 +474,10 @@ void audio_task(void)
 	
 	if (spk_active){
 		// Restart DMA
+		bool hasValid = i2s_tx_descriptor_b->btctrl.valid || i2s_tx_descriptor_a->btctrl.valid;
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin) && (fs_pin == 1)){
+		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin) && (fs_pin == 1) && hasValid){
 			DMAC->CHID.reg = 1;
 			dma_resume(1);
 			DMAC->CHINTENSET.bit.SUSP = 1;
@@ -519,7 +525,7 @@ void audio_task(void)
 		
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if (!DMAC->BUSYCH.bit.BUSYCH0 && (fs_prev != fs_pin) && (fs_pin == 0)){
+		if (!DMAC->BUSYCH.bit.BUSYCH0 && (fs_prev != fs_pin) && (fs_pin == 1)){
 			// Resume channel
 			DMAC->CHID.reg = 0;
 			dma_resume(0);
