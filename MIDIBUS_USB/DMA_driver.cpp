@@ -30,7 +30,7 @@ void dma_init(DMA_Descriptor_t* base_address, DMA_Descriptor_t* wrb_address){
 	DMAC->BASEADDR.reg = (uint32_t) base_address;
 	DMAC->WRBADDR.reg = (uint32_t) wrb_address;
 	
-	//NVIC_EnableIRQ(DMAC_IRQn);
+	NVIC_EnableIRQ(DMAC_IRQn);
 	
 	// Enable DMA
 	DMAC->CTRL.bit.DMAENABLE = 1;
@@ -66,14 +66,31 @@ void dma_detach(uint8_t channel){
 void DMAC_Handler(){
 	uint32_t tempFlag = DMAC->INTPEND.bit.ID;
 	DMAC->CHID.reg = tempFlag;
-//  	if (!wrback_descriptor[tempFlag].btctrl.valid){
-//  		DMAC->CHINTENCLR.bit.SUSP = 1;
-//  		return;
-//  	}
-	
+	// 	if (!wrback_descriptor[tempFlag].btctrl.valid){
+	// 		DMAC->CHINTENCLR.bit.SUSP = 1;
+	// 		return;
+	// 	}
+
+	// Check FS pin when block done?
+	bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 	PORT->Group[0].OUTTGL.reg = 1 << 17;
 	
-	dma_resume(tempFlag);
-	DMAC->CHINTENCLR.bit.SUSP = 1;
+	if (DMAC->CHINTFLAG.bit.TCMPL){
+		if (!fs_pin){
+			// Transaction starting on wrong frame sync state
+			// Suspend
+			DMAC->CHINTENCLR.bit.SUSP = 1;
+			DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_SUSP | DMAC_CHINTFLAG_TCMPL;
+			DMAC->CHCTRLB.bit.CMD = DMAC_CHCTRLB_CMD_SUSPEND_Val;
+			
+		} else {
+			DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
+		}
+	}
+	
+	if(DMAC->CHINTFLAG.bit.SUSP){
+		dma_resume(tempFlag);
+		DMAC->CHINTENCLR.bit.SUSP = 1;
+	}
 }
 

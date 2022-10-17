@@ -71,7 +71,7 @@ uint8_t current_resolution_out;
 uint8_t current_resolution_in;
 
 const struct DMA_Channel_config dma_i2s_tx_conf = {
-	.int_enable_complete = 0,
+	.int_enable_complete = 1,
 	.int_enable_suspend = 0,
 	.int_enable_error = 0,
 	.trigger_src = I2S_DMAC_ID_TX_1,
@@ -80,7 +80,7 @@ const struct DMA_Channel_config dma_i2s_tx_conf = {
 };
 
 const struct DMA_Channel_config dma_i2s_rx_conf = {
-	.int_enable_complete = 0,
+	.int_enable_complete = 1,
 	.int_enable_suspend = 0,
 	.int_enable_error = 0,
 	.trigger_src = I2S_DMAC_ID_RX_0,
@@ -392,7 +392,7 @@ void audio_dma_init(){
 	DMA_BTCTRL_t tempCtrl;
 	tempCtrl.word = 0;
 	tempCtrl.evosel = DMAC_BTCTRL_EVOSEL_BEAT_Val;
-	tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_NOACT_Val;
+	tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_INT_Val;
 	tempCtrl.beatsize = DMAC_BTCTRL_BEATSIZE_HWORD_Val;
 	tempCtrl.stepsel = DMAC_BTCTRL_STEPSEL_SRC_Val;
 	tempCtrl.dstinc = 1;
@@ -440,7 +440,7 @@ void audio_task(void)
 			DMA_BTCTRL_t tempCtrl;
 			tempCtrl.word = 0;
 			tempCtrl.evosel = DMAC_BTCTRL_EVOSEL_BEAT_Val;
-			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_NOACT_Val;
+			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_INT_Val;
 			tempCtrl.stepsel = DMAC_BTCTRL_STEPSEL_DST_Val;
 			tempCtrl.beatsize = data_shift;
 			tempCtrl.srcinc = 1;
@@ -470,7 +470,7 @@ void audio_task(void)
 			DMA_BTCTRL_t tempCtrl;
 			tempCtrl.word = 0;
 			tempCtrl.evosel = DMAC_BTCTRL_EVOSEL_BEAT_Val;
-			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_NOACT_Val;
+			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_INT_Val;
 			tempCtrl.stepsel = DMAC_BTCTRL_STEPSEL_DST_Val;
 			tempCtrl.beatsize = data_shift;
 			tempCtrl.srcinc = 1;
@@ -500,13 +500,13 @@ void audio_task(void)
 	
 	if (spk_active){
 		// Restart DMA
-		bool hasValid = i2s_tx_descriptor_b->btctrl.valid || i2s_tx_descriptor_a->btctrl.valid;
+		bool hasValid = i2s_tx_descriptor_b->btctrl.valid || i2s_tx_descriptor_a->btctrl.valid || i2s_tx_descriptor_wb->btctrl.valid;
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
 		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin) && (fs_pin == 1) && hasValid){
 			DMAC->CHID.reg = 1;
 			dma_resume(1);
-			DMAC->CHINTENSET.bit.SUSP = 1;
+			//DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
 		
@@ -518,7 +518,7 @@ void audio_task(void)
 			DMA_BTCTRL_t tempCtrl;
 			tempCtrl.word = 0;
 			tempCtrl.evosel = DMAC_BTCTRL_EVOSEL_BEAT_Val;
-			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_NOACT_Val;
+			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_INT_Val;
 			tempCtrl.beatsize = data_shift;
 			tempCtrl.stepsel = DMAC_BTCTRL_STEPSEL_SRC_Val;
 			tempCtrl.dstinc = 1;
@@ -535,7 +535,7 @@ void audio_task(void)
 			DMA_BTCTRL_t tempCtrl;
 			tempCtrl.word = 0;
 			tempCtrl.evosel = DMAC_BTCTRL_EVOSEL_BEAT_Val;
-			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_NOACT_Val;
+			tempCtrl.blockact = DMAC_BTCTRL_BLOCKACT_INT_Val;
 			tempCtrl.beatsize = data_shift;
 			tempCtrl.stepsel = DMAC_BTCTRL_STEPSEL_SRC_Val;
 			tempCtrl.dstinc = 1;
@@ -555,7 +555,7 @@ void audio_task(void)
 			// Resume channel
 			DMAC->CHID.reg = 0;
 			dma_resume(0);
-			DMAC->CHINTENSET.bit.SUSP = 1;
+			//DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
 		
