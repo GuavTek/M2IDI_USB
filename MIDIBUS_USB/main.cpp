@@ -19,6 +19,7 @@
 
 
 MCP2517_C CAN(SERCOM5);
+RingBuffer<8, MIDI_UMP_t> canBuffer;
 
 void CAN_Receive(CAN_Rx_msg_t* data);
 void USB_Init();
@@ -105,13 +106,27 @@ int main(void)
 		audio_task();
 		midi_task();
 		
-		
 		if (PORT->Group[0].IN.reg & (1 << 11)){
 			PORT->Group[0].OUTCLR.reg = 1 << 16;
 		} else {
 			PORT->Group[0].OUTSET.reg = 1 << 16;
 		}
+		
+		if (canBuffer.Count() && CAN.Ready()){
+			char tempData[16];
+			MIDI_UMP_t msg;
+			uint8_t length;
 			
+			canBuffer.Read(&msg);
+			length = MIDI_CAN.Encode(tempData, &msg, 2);
+
+			CAN_Tx_msg_t txMsg;
+			txMsg.dataLengthCode = CAN.Get_DLC(length);
+			txMsg.payload = tempData;
+			txMsg.id = midiID;
+			CAN.Transmit_Message(&txMsg, 2);
+		}
+		
 		static uint32_t timrr = 0;
 		if (timrr < system_ticks/**/)	{
 			timrr = system_ticks + blinkTime;
@@ -170,16 +185,8 @@ void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 
 // Handle USB midi data
 void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
-	char tempData[16];
-	uint8_t length;
 	msg->com.group = 1;
-	length = MIDI_CAN.Encode(tempData, msg, 2);
-	
-	CAN_Tx_msg_t txMsg;
-	txMsg.dataLengthCode = CAN.Get_DLC(length);
-	txMsg.payload = tempData;
-	txMsg.id = midiID;
-	CAN.Transmit_Message(&txMsg, 2);
+	canBuffer.Write(msg);
 }
 
 void midi_task(void)
