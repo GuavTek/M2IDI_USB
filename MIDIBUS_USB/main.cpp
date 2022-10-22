@@ -15,6 +15,7 @@
 #include "I2S_driver.h"
 #include "Audio_driver.h"
 #include "tusb.h"
+#include "RingBuffer.h"
 
 
 MCP2517_C CAN(SERCOM5);
