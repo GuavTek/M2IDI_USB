@@ -338,22 +338,31 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 const int32_t pid_Kp = 12;
 const int32_t pid_Ki = 1;
 const int32_t pid_Kd = 36;
-int32_t pid_integrate = 0;
-int32_t pid_prev = 0;
 const uint32_t pid_i_div = 16;
+
+// Simple PID regulator
+inline int32_t pid_step(int32_t delta) {
+	static int32_t pid_integrate = 0;
+	static int32_t pid_prev = 0;
+	int32_t temp_pid;
+	
+	pid_integrate += delta * pid_Ki;
+	int32_t pid_current = pid_Kp * delta + (pid_integrate >> pid_i_div);
+	temp_pid = pid_current + pid_Kd * (pid_current - pid_prev);
+	pid_prev = pid_current;
+	return temp_pid;
+}
+
 bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting){
 	(void)rhport;
 	(void)func_id;
 	(void)ep_out;
 	(void)cur_alt_setting;
 	
-	// Simple PID regulator
 	const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 4);
 	int32_t delta = spk_data_new - midPoint;
-	pid_integrate += delta * pid_Ki;
-	int32_t pid_current = pid_Kp * delta + (pid_integrate >> pid_i_div);
-	i2s_adjust_freq(pid_current + pid_Kd * (pid_current - pid_prev));
-	pid_prev = pid_current;
+	
+	i2s_adjust_freq(pid_step(delta));
 	
 	spk_data_new += n_bytes_received;
 	
@@ -369,13 +378,10 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	mic_data_pend -= n_bytes_copied;
 	
 	if (!spk_active){
-		// Simple PI regulator
 		const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ / 4);
-		int32_t delta = midPoint - mic_data_pend;
-		pid_integrate += delta * pid_Ki;
-		int32_t pid_current = pid_Kp * delta + (pid_integrate >> pid_i_div);
-		i2s_adjust_freq(pid_current + pid_Kd * (pid_current - pid_prev));
-		pid_prev = pid_current;
+		int32_t delta = mic_data_pend - midPoint;
+		
+		i2s_adjust_freq(pid_step(delta));
 	}
 		
 	return true;
