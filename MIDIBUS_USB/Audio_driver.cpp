@@ -18,6 +18,7 @@ extern volatile int64_t dropped_bytes;
 const uint32_t sample_rates[] = {44100, 48000, 88200, 96000};
 uint32_t current_sample_rate  = 44100;
 #define N_SAMPLE_RATES  TU_ARRAY_SIZE(sample_rates)
+uint16_t byte_per_frame;
 
 enum
 {
@@ -41,7 +42,7 @@ int8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];       // +1 for master chan
 int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];    // +1 for master channel 0
 
 // Buffer for microphone data
-const uint16_t mic_buf_size = 64;
+const uint16_t mic_buf_size = 32;
 int32_t mic_buf[mic_buf_size];
 // easier to read while debugging 16-bit mode
 extern int16_t mic_buf16[mic_buf_size*2] __attribute__ ((alias ("mic_buf")));
@@ -59,9 +60,6 @@ uint32_t* const spk_buf_hi = (uint32_t*) &spk_buf[spk_buf_size/2];
 
 // Speaker data size received in the last frame
 int16_t spk_data_new;
-
-// Mic data waiting to be sent
-int16_t mic_data_pend;
 
 // Resolution per format
 const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX,
@@ -148,7 +146,13 @@ static bool tud_audio_clock_set_request(uint8_t rhport, audio_control_request_t 
 
 		current_sample_rate = ((audio_control_cur_4_t const *)buf)->bCur;
 		
-		i2s_set_freq(current_sample_rate);		
+		i2s_set_freq(current_sample_rate);
+		
+		if (current_resolution_in == 24){
+			byte_per_frame = current_sample_rate * 2 * 32 / 8000;
+		} else {
+			byte_per_frame = current_sample_rate * 2 * current_resolution_in / 8000;
+		}
 		
 		TU_LOG1("Clock set current freq: %ld\r\n", current_sample_rate);
 
@@ -283,6 +287,7 @@ bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const 
 		// Detach DMA
 		dma_suspend(1);
 		spk_active = false;
+		spk_data_new = 0;
 		// Clear DMA transactions?
 	}
 	
@@ -323,10 +328,14 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 		current_resolution_in = resolutions_per_format[alt-1];
 		blinkTime2 = 40;
 		i2s_set_input_wordsize(current_resolution_in);
+		if (current_resolution_in == 24){
+			byte_per_frame = current_sample_rate * 2 * 32 / 8000;
+		} else {
+			byte_per_frame = current_sample_rate * 2 * current_resolution_in / 8000;
+		}
 		// Attach DMA
 		//dma_resume(0);
 		
-		mic_data_pend = 0;
 		i2s_rx_descriptor_a->btctrl.valid = 0;
 		i2s_rx_descriptor_b->btctrl.valid = 0;
 		mic_active = true;
@@ -335,21 +344,21 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 	return true;
 }
 
-const int32_t pid_Kp = 12;
-const int32_t pid_Ki = 1;
-const int32_t pid_Kd = 36;
-const uint32_t pid_i_div = 16;
+const int32_t pid_Kp = 16;
+const int32_t pid_Ki = 8;
+const int32_t pid_Kd = 8;
+const uint8_t pid_i_div = 1;
 
 // Simple PID regulator
 inline int32_t pid_step(int32_t delta) {
 	static int32_t pid_integrate = 0;
-	static int32_t pid_prev = 0;
+	static int32_t delta_prev = 0;
 	int32_t temp_pid;
 	
 	pid_integrate += delta * pid_Ki;
 	int32_t pid_current = pid_Kp * delta + (pid_integrate >> pid_i_div);
-	temp_pid = pid_current + pid_Kd * (pid_current - pid_prev);
-	pid_prev = pid_current;
+	temp_pid = pid_current + pid_Kd * (delta - delta_prev);
+	delta_prev = delta;
 	return temp_pid;
 }
 
@@ -359,7 +368,7 @@ bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, ui
 	(void)ep_out;
 	(void)cur_alt_setting;
 	
-	const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 4);
+	const uint32_t midPoint = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 2;
 	int32_t delta = spk_data_new - midPoint;
 	
 	i2s_adjust_freq(pid_step(delta));
@@ -374,13 +383,10 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	(void)func_id;
 	(void)ep_in;
 	(void)cur_alt_setting;
-	
-	mic_data_pend -= n_bytes_copied;
-	
+	 
 	if (!spk_active){
-		const uint32_t midPoint = (CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ / 4);
-		int32_t delta = mic_data_pend - midPoint;
-		
+		int32_t delta = byte_per_frame - n_bytes_copied;
+				
 		i2s_adjust_freq(pid_step(delta));
 	}
 		
@@ -530,9 +536,7 @@ void audio_task(void)
 			tempCtrl.dstinc = 1;
 			tempCtrl.valid = 1;
 			
-			uint16_t tempData;
-			tempData = tud_audio_write(mic_buf_lo, mic_buf_size * 2 );
-			mic_data_pend += tempData;
+			tud_audio_write(mic_buf_lo, mic_buf_size * 2 );
 
 			//dma_set_descriptor(i2s_rx_descriptor_a, ((mic_buf_size*2) >> data_shift), i2s_rx_reg, mic_buf_lo, i2s_rx_descriptor_b, tempCtrl);
 			dma_set_descriptor(i2s_rx_descriptor_a, ((mic_buf_size*2) >> data_shift), data_shift);
@@ -547,9 +551,7 @@ void audio_task(void)
 			tempCtrl.dstinc = 1;
 			tempCtrl.valid = 1;
 			
-			uint16_t tempData;
-			tempData = tud_audio_write(mic_buf_hi, mic_buf_size * 2 );
-			mic_data_pend += tempData;
+			tud_audio_write(mic_buf_hi, mic_buf_size * 2 );
 
 			//dma_set_descriptor(i2s_rx_descriptor_b, ((mic_buf_size*2) >> data_shift), i2s_rx_reg, mic_buf_hi, i2s_rx_descriptor_a, tempCtrl);
 			dma_set_descriptor(i2s_rx_descriptor_b, ((mic_buf_size*2) >> data_shift), data_shift);
