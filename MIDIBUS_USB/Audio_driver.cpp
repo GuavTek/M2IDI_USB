@@ -512,12 +512,13 @@ void audio_task(void)
 	
 	if (spk_active){
 		// Restart DMA
+		DMAC->CHID.reg = 1;
 		bool hasValid = i2s_tx_descriptor_b->btctrl.valid || i2s_tx_descriptor_a->btctrl.valid || i2s_tx_descriptor_wb->btctrl.valid;
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if(!DMAC->BUSYCH.bit.BUSYCH1 && (fs_prev != fs_pin) && (fs_pin == 1) && hasValid){
-			DMAC->CHID.reg = 1;
+		if(DMAC->CHINTFLAG.bit.SUSP && !fs_prev && fs_pin && hasValid){
 			dma_resume(1);
+			DMAC->CHINTFLAG.bit.SUSP = 1;
 			//DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
@@ -557,12 +558,13 @@ void audio_task(void)
 			dma_set_descriptor(i2s_rx_descriptor_b, ((mic_buf_size*2) >> data_shift), data_shift);
 		}
 		
+		DMAC->CHID.reg = 0;
 		bool fs_pin = PORT->Group[0].IN.reg & (1 << 11);
 		static bool fs_prev;
-		if (!DMAC->BUSYCH.bit.BUSYCH0 && (fs_prev != fs_pin) && (fs_pin == 1)){
+		if (DMAC->CHINTFLAG.bit.SUSP && !fs_prev && fs_pin){
 			// Resume channel
-			DMAC->CHID.reg = 0;
 			dma_resume(0);
+			DMAC->CHINTFLAG.bit.SUSP = 1;
 			//DMAC->CHINTENSET.bit.SUSP = 1;
 		}
 		fs_prev = fs_pin;
