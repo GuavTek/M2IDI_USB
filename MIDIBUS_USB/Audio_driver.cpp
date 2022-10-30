@@ -383,9 +383,14 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	(void)func_id;
 	(void)ep_in;
 	(void)cur_alt_setting;
-	 
+	
+	// Running average (current + last) >> 1;
+	static int16_t avg_bytes_copied;
+	avg_bytes_copied += n_bytes_copied;
+	avg_bytes_copied >>= 1;
+	
 	if (!spk_active){
-		int32_t delta = byte_per_frame - n_bytes_copied;
+		int32_t delta = byte_per_frame - avg_bytes_copied;
 				
 		i2s_adjust_freq(pid_step(delta));
 	}
