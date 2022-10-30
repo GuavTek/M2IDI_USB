@@ -128,7 +128,7 @@ void i2s_set_freq(uint32_t samplerate) {
 
 // Compensate for inaccurate reference clock
 void i2s_adjust_freq(int32_t delta){
-	compensateFreq += delta;
+	compensateFreq = delta;
 	i2s_set_freq();
 }
 
