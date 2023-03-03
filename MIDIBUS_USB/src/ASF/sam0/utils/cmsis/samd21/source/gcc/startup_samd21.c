@@ -278,6 +278,7 @@ void Dummy_Handler(void)
 	//asm volatile ("pop %0"
 	//	: "=r" (prevPC) 
 	//	);
+	// 3 = Hard fault (probably ran out of memory or sumthin)
 	
 	while(1) {
 		phantomISR = __get_IPSR();
