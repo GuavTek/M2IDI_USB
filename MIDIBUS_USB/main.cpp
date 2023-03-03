@@ -48,7 +48,7 @@ volatile uint64_t rxofl_count = 0;
 volatile uint64_t txufr_count = 0;
 volatile uint64_t rxofr_count = 0;
 volatile uint64_t terr_count = 0;
-
+/*
 inline void Debug_func() {
 	if ((I2S->INTFLAG.bit.RXOR0) && mic_active && (i2s_rx_descriptor_wb->btctrl.valid == 0)){
 		rxofl_count++;
@@ -60,6 +60,7 @@ inline void Debug_func() {
 		terr_count++;
 	}
 };
+//*/
 
 int main(void)
 {
@@ -68,7 +69,7 @@ int main(void)
 	i2s_init(44100);
 	
 	dma_init(base_descriptor, wrback_descriptor);
-	audio_dma_init();
+	//audio_dma_init();
 	
 	PORT->Group[0].DIRSET.reg = (1 << 16) | (1 << 17);
 	PORT->Group[0].OUTCLR.reg = 1 << 16;
@@ -109,9 +110,9 @@ int main(void)
 		tud_task();
 		//tuh_task();
 		
-		Debug_func();
+		//Debug_func();
 		
-		audio_task();
+		//audio_task();
 		midi_task();
 		
 		if (PORT->Group[0].IN.reg & (1 << 11)){
