@@ -11,6 +11,7 @@
 #define MIDI_CONFIG_H_
 
 #include "MCP2517.h"
+#include "SPI_SAMD.h"
 
 // Define CAN filters
 CAN_Filter_t CAN_FLT0 = {
@@ -70,15 +71,15 @@ const spi_config_t SPI_CONF = {
 	.dipoVal = 0x3,
 	.dopoVal = 0x0,
 	.speed = 8000000,
-	.pin_cs = PIN_PB22,
 	.pinmux_mosi = PINMUX_PB02D_SERCOM5_PAD0,
 	.pinmux_miso = PINMUX_PB23D_SERCOM5_PAD3,
-	.pinmux_sck = PINMUX_PB03D_SERCOM5_PAD1
+	.pinmux_sck = PINMUX_PB03D_SERCOM5_PAD1,
+	.num_cs = 1,
+	.pin_cs = {PIN_PB22}
 };
 
 const CAN_Config_t CAN_CONF = {
-	.rxMethod = CAN_Config_t::CAN_Rx_Interrupt,
-	.interruptPin = 0,
+	.comSlaveNum = 0,
 	.clkOutDiv = CAN_Config_t::clkOutDiv1,
 	.sysClkDiv = false,
 	.clkDisable = false,

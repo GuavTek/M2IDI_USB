@@ -8,8 +8,8 @@
 #include "MIDI_Config.h"
 #include "sam.h"
 #include "asf.h"
+#include "SPI_SAMD.h"
 #include "MCP2517.h"
-#include "SPI.h"
 #include "MIDI_Driver.h"
 #include "DMA_driver.h"
 #include "I2S_driver.h"
@@ -17,8 +17,8 @@
 #include "tusb.h"
 #include "RingBuffer.h"
 
-
-MCP2517_C CAN(SERCOM5);
+SPI_SAMD_C SPI(SERCOM5);
+MCP2517_C CAN(&SPI);
 RingBuffer<8, MIDI_UMP_t> canBuffer;
 
 void CAN_Receive(CAN_Rx_msg_t* data);
@@ -26,6 +26,7 @@ void USB_Init();
 void audio_task(void);
 void midi_task(void);
 void audio_dma_init();
+void check_can_int();
 
 void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg);
 void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg);
@@ -63,8 +64,7 @@ inline void Debug_func() {
 int main(void)
 {
 	system_init();
-	CAN.Init(CAN_CONF, SPI_CONF);
-	CAN.Set_Rx_Callback(CAN_Receive);
+	SPI.Init(SPI_CONF);
 	i2s_init(44100);
 	
 	dma_init(base_descriptor, wrback_descriptor);
@@ -73,6 +73,13 @@ int main(void)
 	PORT->Group[0].DIRSET.reg = (1 << 16) | (1 << 17);
 	PORT->Group[0].OUTCLR.reg = 1 << 16;
 
+	// Configure the CAN_INT pin
+	struct port_config intCon = {
+		.direction = PORT_PIN_DIR_INPUT,
+		.input_pull = PORT_PIN_PULL_NONE,
+		.powersave = false
+	};
+	port_pin_set_config(PIN_PA00, &intCon);
 	
 	USB_Init();
 	tusb_init();
@@ -82,6 +89,9 @@ int main(void)
 	
 	NVIC_EnableIRQ(SERCOM5_IRQn);
 	system_interrupt_enable_global();
+	
+	CAN.Init(CAN_CONF);
+	CAN.Set_Rx_Callback(CAN_Receive);
 	
 	char temp[4];
 	CAN_Tx_msg_t message;
@@ -95,8 +105,6 @@ int main(void)
 	
     while (1) 
     {
-		CAN.State_Machine();
-		
 		// USB tasks
 		tud_task();
 		//tuh_task();
@@ -112,6 +120,9 @@ int main(void)
 			PORT->Group[0].OUTSET.reg = 1 << 16;
 		}
 		
+		if (CAN.Ready()){
+			check_can_int();
+		}
 		if (canBuffer.Count() && CAN.Ready()){
 			char tempData[16];
 			MIDI_UMP_t msg;
@@ -171,6 +182,12 @@ void USB_Init(){
 // Handle MIDI CAN data
 void CAN_Receive(CAN_Rx_msg_t* data){
 	MIDI_CAN.Decode(data->payload, CAN.Get_Data_Length(data->dataLengthCode) );
+}
+
+void check_can_int(){
+	if (!port_pin_get_input_level(PIN_PA00)){
+		CAN.Check_Rx();
+	}
 }
 
 void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
@@ -245,6 +262,6 @@ void USB_Handler(void){
 // For some reason the SERCOM5 interrupt leads to the SERCOM3 handler
 // That was a painful debugging session
 void SERCOM5_Handler(void){
-	CAN.Handler();
+	SPI.Handler();
 }
 
