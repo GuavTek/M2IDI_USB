@@ -50,7 +50,7 @@ uint32_t* const mic_buf_lo = (uint32_t*) &mic_buf[0];
 uint32_t* const mic_buf_hi = (uint32_t*) &mic_buf[mic_buf_size/2];
 
 // Buffer for speaker data
-const uint16_t spk_buf_size = 128;
+const uint16_t spk_buf_size = 32;
 int32_t spk_buf[spk_buf_size];
 // easier to read while debugging 16-bit mode
 extern int16_t spk_buf16[spk_buf_size*2] __attribute__ ((alias ("spk_buf")));
@@ -86,7 +86,7 @@ const struct DMA_Channel_config dma_i2s_rx_conf = {
 	.arbitration_lvl = 2
 };
 
-
+#if (CFG_TUD_AUDIO > 0)
 
 // Helper for clock get requests
 static bool tud_audio_clock_get_request(uint8_t rhport, audio_control_request_t const *request)
@@ -577,3 +577,5 @@ void audio_task(void)
 	}
 }
 //*/
+#endif // (CFG_TUD_AUDIO > 0)
+

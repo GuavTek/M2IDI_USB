@@ -88,11 +88,14 @@ uint8_t const desc_configuration[] =
     // Interface count, string index, total length, attribute, power in mA
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_SELF_POWERED, 0),
 
+	#if (CFG_TUD_AUDIO > 0)
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_AUDIO_HEADSET_STEREO_DESCRIPTOR(2, EPNUM_AUDIO_OUT, EPNUM_AUDIO_IN | 0x80),
-
+	#endif // (CFG_TUD_AUDIO > 0)
+	
+	
     // Interface number, string index, EP Out & EP In address, EP size
-    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 6, EPNUM_MIDI_OUT, (0x80 | EPNUM_MIDI_IN), (TUD_OPT_HIGH_SPEED ? 512 : 64))
+    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, ITF_NUM_TOTAL, EPNUM_MIDI_OUT, (0x80 | EPNUM_MIDI_IN), (TUD_OPT_HIGH_SPEED ? 512 : 64))
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -111,13 +114,15 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 // array of pointer to string descriptors
 char const* string_desc_arr [] =
 {
-  (const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
-  "GuavTek",                      // 1: Manufacturer
-  "M2IDI Eurorack interface",              // 2: Product
-  "000001",                       // 3: Serials, should use chip ID
-  "Eurorack Input",             // 4: Audio Interface
-  "Eurorack Output",           // 5: Audio Interface
-  "Eurorack MIDI",				// 6: MIDI Interface
+	(const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
+	"GuavTek",                      // 1: Manufacturer
+	"M2IDI Eurorack interface",              // 2: Product
+	"000001",                       // 3: Serials, should use chip ID
+	#if (CFG_TUD_AUDIO > 0)
+	"Eurorack Input",             // 4: Audio Interface
+	"Eurorack Output",           // 5: Audio Interface
+	#endif  // (CFG_TUD_AUDIO > 0)
+	"Eurorack MIDI",				// 6: MIDI Interface
 };
 
 static uint16_t _desc_str[32];
