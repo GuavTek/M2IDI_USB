@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.13)
+
+# initialize the SDK based on PICO_SDK_PATH
+# note: this must happen before project()
+include(pico_sdk_import.cmake)
+
+project(M2IDI_USB CXX C ASM)
+
+set(PICO_BOARD board_m2idi_usb)
+set(PICO_BOARD_HEADER_DIRS ${PROJECT_SOURCE_DIR}/src)
+
+# initialize the Raspberry Pi Pico SDK
+pico_sdk_init()
+
+# Add library files
+add_subdirectory(lib)
+
+# rest of your project
+file(GLOB src_list CONFIGURE_DEPENDS "src/*.h" "src/*.cpp")
+add_executable(M2IDI_USB
+    ${src_list}
+)
+
+# Add pico_stdlib library which aggregates commonly used features
+target_link_libraries(M2IDI_USB pico_stdlib)
+
+# create map/bin/hex/uf2 file in addition to ELF.
+pico_add_extra_outputs(M2IDI_USB)
