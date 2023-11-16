@@ -1,8 +1,8 @@
 [submodule "MIDI_driver"]
 	path = MIDIBUS_USB/MIDI_driver
 	url = https://github.com/GuavTek/MIDI_driver
-[submodule "MCP2517_ATSAMD_driver"]
-	path = MIDIBUS_USB/MCP2517_ATSAMD_driver/MCP2517_ATSAMD_driver
+[submodule "MCP2517_driver"]
+	path = MIDIBUS_USB/MCP2517_driver
 	url = https://github.com/GuavTek/MCP2517_driver
 [submodule "MIDIBUS_USB/tinyusb"]
 	path = MIDIBUS_USB/tinyusb
