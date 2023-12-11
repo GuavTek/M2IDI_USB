@@ -24,7 +24,7 @@ extern "C" {
 // COMMON CONFIGURATION
 //--------------------------------------------------------------------
 
-#define CFG_TUSB_MCU OPT_MCU_SAMD21
+#define CFG_TUSB_MCU OPT_MCU_RP2040
 #define CFG_TUSB_OS OPT_OS_NONE
 #define CFG_TUSB_DEBUG        0
 #define CFG_TUD_ENABLED       1
@@ -34,7 +34,7 @@ extern "C" {
 #define CFG_TUH_ENABLED       0
 #define CFG_TUH_MAX_SPEED     BOARD_TUH_MAX_SPEED
 
-#define CFG_TUSB_RHPORT0_MODE OPT_MODE_DEVICE
+#define CFG_TUSB_RHPORT0_MODE OPT_MODE_DUAL
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment.
  * Tinyusb use follows macros to declare transferring memory so that they can be put
@@ -112,7 +112,7 @@ extern "C" {
 #define CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_RX          4
 #define CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX                  24
 
-// EP and buffer size - for isochronous EP´s, the buffer and EP size are equal (different sizes would not make sense)
+// EP and buffer size - for isochronous EPï¿½s, the buffer and EP size are equal (different sizes would not make sense)
 #define CFG_TUD_AUDIO_ENABLE_EP_IN                1
 
 #define CFG_TUD_AUDIO_FUNC_1_FORMAT_1_EP_SZ_IN    TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_TX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX)
@@ -121,7 +121,7 @@ extern "C" {
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ      TU_MAX(CFG_TUD_AUDIO_FUNC_1_FORMAT_1_EP_SZ_IN, CFG_TUD_AUDIO_FUNC_1_FORMAT_2_EP_SZ_IN)*2
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX         TU_MAX(CFG_TUD_AUDIO_FUNC_1_FORMAT_1_EP_SZ_IN, CFG_TUD_AUDIO_FUNC_1_FORMAT_2_EP_SZ_IN) // Maximum EP IN size for all AS alternate settings used
 
-// EP and buffer size - for isochronous EP´s, the buffer and EP size are equal (different sizes would not make sense)
+// EP and buffer size - for isochronous EPï¿½s, the buffer and EP size are equal (different sizes would not make sense)
 #define CFG_TUD_AUDIO_ENABLE_EP_OUT               1
 
 #define CFG_TUD_AUDIO_UNC_1_FORMAT_1_EP_SZ_OUT    TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)

@@ -11,10 +11,10 @@
 #define MIDI_CONFIG_H_
 
 #include "MCP2517.h"
-#include "SPI_SAMD.h"
+#include "SPI_RP2040.h"
 
 // Define CAN filters
-CAN_Filter_t CAN_FLT0 = {
+const CAN_Filter_t CAN_FLT0 = {
 	.enabled = true,
 	.fifoDestination = 1,
 	.extendedID = false,
@@ -23,7 +23,7 @@ CAN_Filter_t CAN_FLT0 = {
 	.maskID = 1 << 10
 };
 
-CAN_Filter_t CAN_FLT1 = {
+const CAN_Filter_t CAN_FLT1 = {
 	.enabled = true,
 	.fifoDestination = 1,
 	.extendedID = false,
@@ -33,7 +33,7 @@ CAN_Filter_t CAN_FLT1 = {
 };
 
 // Define FIFO configurations
-CAN_FIFO_t CAN_FIFO1 = {
+const CAN_FIFO_t CAN_FIFO1 = {
 	.enabled = true,
 	.payloadSize = 16,
 	.fifoDepth = 31,
@@ -49,7 +49,7 @@ CAN_FIFO_t CAN_FIFO1 = {
 	.notFullEmptyInterrupt = true
 };
 
-CAN_FIFO_t CAN_FIFO2 = {
+const CAN_FIFO_t CAN_FIFO2 = {
 	.enabled = true,
 	.payloadSize = 16,
 	.fifoDepth = 31,
@@ -67,15 +67,15 @@ CAN_FIFO_t CAN_FIFO2 = {
 
 
 const spi_config_t SPI_CONF = {
-	.sercomNum = 5,
-	.dipoVal = 0x3,
-	.dopoVal = 0x0,
-	.speed = 8000000,
-	.pinmux_mosi = PINMUX_PB02D_SERCOM5_PAD0,
-	.pinmux_miso = PINMUX_PB23D_SERCOM5_PAD3,
-	.pinmux_sck = PINMUX_PB03D_SERCOM5_PAD1,
-	.num_cs = 1,
-	.pin_cs = {PIN_PB22}
+//	.sercomNum = 5,
+//	.dipoVal = 0x3,
+//	.dopoVal = 0x0,
+	.speed = 8000000//,
+//	.pinmux_mosi = PINMUX_PB02D_SERCOM5_PAD0,
+//	.pinmux_miso = PINMUX_PB23D_SERCOM5_PAD3,
+//	.pinmux_sck = PINMUX_PB03D_SERCOM5_PAD1,
+//	.num_cs = 1,
+//	.pin_cs = {PIN_PB22}
 };
 
 const CAN_Config_t CAN_CONF = {
