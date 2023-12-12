@@ -4,3 +4,6 @@
 [submodule "lib/MIDI_driver"]
 	path = lib/MIDI_driver
 	url = https://github.com/GuavTek/MIDI_driver
+[submodule "lib/midi_host"]
+	path = lib/midi_host
+	url = https://github.com/rppicomidi/usb_midi_host
