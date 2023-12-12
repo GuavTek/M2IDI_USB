@@ -67,6 +67,8 @@ extern "C" {
 #define CFG_TUH_MSC                 1
 #define CFG_TUH_VENDOR              0
 
+#define CFG_MIDI_HOST_DEVSTRINGS 1
+
 // max device support (excluding hub device)
 #define CFG_TUH_DEVICE_MAX          (CFG_TUH_HUB ? 8 : 1) // hub typically has 4 ports
 
