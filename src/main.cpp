@@ -36,31 +36,23 @@ int main(void){
 	gpio_init(LEDD);
 	gpio_set_dir(LEDH, GPIO_OUT);
 	gpio_set_dir(LEDD, GPIO_OUT);
-	//system_init();
 	//SPI.Init(SPI_CONF);
 	//i2s_init(44100);
 	
 	//dma_init(base_descriptor, wrback_descriptor);
 	//audio_dma_init();
 	
-	//PORT->Group[0].DIRSET.reg = (1 << 16) | (1 << 17);
-	//PORT->Group[0].OUTCLR.reg = 1 << 16;
+	// Configure button pin with interrupt
+	// TODO
 
-	// Configure the CAN_INT pin
-	//struct port_config intCon = {
-	//	.direction = PORT_PIN_DIR_INPUT,
-	//	.input_pull = PORT_PIN_PULL_NONE,
-	//	.powersave = false
-	//};
-	//port_pin_set_config(PIN_PA00, &intCon);
 	USB_Init();
 
 	MIDI_CAN.Set_handler(MIDI_CAN_UMP_handler);
 	MIDI_USB.Set_handler(MIDI_USB_UMP_handler);
 	
-	//NVIC_EnableIRQ(SERCOM5_IRQn);
-	//system_interrupt_enable_global();
-	
+	// Enable SPI interrupt
+	// TODO
+
 	//CAN.Init(CAN_CONF);
 	//CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
 	//CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
@@ -70,15 +62,14 @@ int main(void){
 		//tud_task();
 		tuh_task();
 		
-		//Debug_func();
-		
 		//audio_task();
 		midi_task();
 		
-		//if (PORT->Group[0].IN.reg & (1 << 11)){
-		//	PORT->Group[0].OUTCLR.reg = 1 << 16;
+		// Detect usb status
+		//if (gpio_get(USB_ID_PIN)){
+		//	gpio_set(LEDD, 1);
 		//} else {
-		//	PORT->Group[0].OUTSET.reg = 1 << 16;
+		//	gpio_set(LEDD, 0);
 		//}
 		
 		//if (CAN.Ready()){
@@ -111,15 +102,19 @@ int main(void){
 
 // Handle MIDI CAN data
 void CAN_Receive_Header(CAN_Rx_msg_t* data){
+	// Detect CAN id, and MIDI muid collisions
+	// TODO
 	//MIDI_CAN.Decode(data->payload, CAN.Get_Data_Length(data->dataLengthCode) );
 }
 
 // Handle MIDI CAN data
 void CAN_Receive_Data(char* data, uint8_t length){
+	// Receive MIDI payload from CAN
 	//MIDI_CAN.Decode(data->payload, CAN.Get_Data_Length(data->dataLengthCode) );
 }
 
 void check_can_int(){
+	// Check interrupt pin to start reading from CAN controller
 	//if (!port_pin_get_input_level(PIN_PA00)){
 	//	CAN.Check_Rx();
 	//}
@@ -131,6 +126,7 @@ void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 	length = MIDI_USB.Encode(tempData, msg, MIDI_USB.Get_Version());
 	
 	if (length > 0){
+		// TODO: select host or device when appropriate
 		//tud_midi_stream_write(0, (uint8_t*)(tempData), length);
 	}
 }
@@ -142,6 +138,9 @@ void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
 }
 
 void midi_task(void){
+	// Send MIDI data over USB
+	// TODO
+
 	//uint8_t packet[16];
 	//uint8_t length;
 	//while ( tud_midi_available() ) {
@@ -149,10 +148,3 @@ void midi_task(void){
 	//	MIDI_USB.Decode((char*)(packet), length);
 	//}
 }
-/**/
-
-// For some reason the SERCOM5 interrupt leads to the SERCOM3 handler
-// That was a painful debugging session
-//void SERCOM5_Handler(void){
-//	SPI.Handler();
-//}
