@@ -37,7 +37,7 @@ int main(void){
 	gpio_set_dir(LEDH, GPIO_OUT);
 	gpio_set_dir(LEDD, GPIO_OUT);
 	//system_init();
-	SPI.Init(SPI_CONF);
+	//SPI.Init(SPI_CONF);
 	//i2s_init(44100);
 	
 	//dma_init(base_descriptor, wrback_descriptor);
@@ -61,9 +61,9 @@ int main(void){
 	//NVIC_EnableIRQ(SERCOM5_IRQn);
 	//system_interrupt_enable_global();
 	
-	CAN.Init(CAN_CONF);
-	CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
-	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
+	//CAN.Init(CAN_CONF);
+	//CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
+	//CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
 	
     while (true){
 		// USB tasks
@@ -81,22 +81,22 @@ int main(void){
 		//	PORT->Group[0].OUTSET.reg = 1 << 16;
 		//}
 		
-		if (CAN.Ready()){
-			check_can_int();
-		}
-		if (canBuffer.Count() && CAN.Ready()){
-			char tempData[16];
-			MIDI_UMP_t msg;
-			uint8_t length;
-			
-			canBuffer.Read(&msg);
-			length = MIDI_CAN.Encode(tempData, &msg, 2);
-			CAN_Tx_msg_t txMsg;
-			txMsg.dataLengthCode = CAN.Get_DLC(length);
-			txMsg.payload = tempData;
-			txMsg.id = midiID;
-			//CAN.Transmit_Message(&txMsg, 2);
-		}
+		//if (CAN.Ready()){
+		//	check_can_int();
+		//}
+		//if (canBuffer.Count() && CAN.Ready()){
+		//	char tempData[16];
+		//	MIDI_UMP_t msg;
+		//	uint8_t length;
+		//	
+		//	canBuffer.Read(&msg);
+		//	length = MIDI_CAN.Encode(tempData, &msg, 2);
+		//	CAN_Tx_msg_t txMsg;
+		//	txMsg.dataLengthCode = CAN.Get_DLC(length);
+		//	txMsg.payload = tempData;
+		//	txMsg.id = midiID;
+		//	//CAN.Transmit_Message(&txMsg, 2);
+		//}
 		
 		static uint32_t timrr = 0;
 		if (timrr + blinkTime < system_ticks/**/)	{
