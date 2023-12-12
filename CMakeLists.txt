@@ -18,13 +18,16 @@ add_executable(M2IDI_USB
     ${src_list}
 )
 
-#add_subdirectory(lib)
+add_subdirectory(lib)
 
 # Add library files
-target_include_directories(M2IDI_USB PUBLIC lib/MCP2517_driver lib/MIDI_driver src)
+target_include_directories(M2IDI_USB PUBLIC src)
+
+target_link_options(M2IDI_USB PRIVATE -Xlinker --print-memory-usage)
+target_compile_options(M2IDI_USB PRIVATE -Wall -Wextra)
 
 # Add pico_stdlib library which aggregates commonly used features
-target_link_libraries(M2IDI_USB pico_stdlib tinyusb_host)# tinyusb_device midi_driver)
+target_link_libraries(M2IDI_USB pico_stdlib tinyusb_host usb_midi_host_app_driver)# tinyusb_device midi_driver)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(M2IDI_USB)
