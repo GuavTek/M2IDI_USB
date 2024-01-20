@@ -39,6 +39,9 @@ MIDI_UMP_t lostMsg;
 bool hasLost;
 
 int main(void){
+	// Board init
+	set_sys_clock_khz(120000, true);
+
 	gpio_init(LEDH);
 	gpio_init(LEDD);
 	gpio_set_dir(LEDH, GPIO_OUT);
