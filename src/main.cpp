@@ -45,6 +45,8 @@ int main(void){
 	gpio_set_dir(LEDD, GPIO_OUT);
 	gpio_init(M2IDI_CAN_INT_PIN);
 	gpio_set_dir(M2IDI_CAN_INT_PIN, GPIO_IN);
+	gpio_init(USB_ID_PIN);
+	gpio_set_dir(USB_ID_PIN, GPIO_IN);
 
 	SPI_CAN.Init(SPI_CAN_CONF);
 	//i2s_init(44100);
@@ -76,11 +78,11 @@ int main(void){
 		midi_task();
 		
 		// Detect usb status
-		//if (gpio_get(USB_ID_PIN)){
-		//	gpio_set(LEDD, 1);
-		//} else {
-		//	gpio_set(LEDD, 0);
-		//}
+		if (gpio_get(USB_ID_PIN)){
+			gpio_put(LEDD, 1);
+		} else {
+			gpio_put(LEDD, 0);
+		}
 		
 		if (CAN.Ready()){
 			check_can_int();
