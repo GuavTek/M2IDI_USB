@@ -16,10 +16,6 @@ extern volatile uint32_t system_ticks;
 // Initialize clocks and pins for the USB port
 void USB_Init();
 	
-void SysTick_Handler (void);
-
-uint32_t board_millis(void);
-
 void USB_Handler(void);
 
 //--------------------------------------------------------------------+

@@ -7,7 +7,6 @@ uint32_t blinkTime = 0;
 uint32_t blinkTime2 = 0;
 uint8_t devAddr[CFG_TUH_DEVICE_MAX];
 int8_t devNum = 0;
-volatile uint32_t system_ticks = 0;
 
 // Initialize clocks and pins for the USB port
 void USB_Init(){
@@ -39,16 +38,8 @@ void USB_Init(){
 	// Enable USB ID pin
 	//PORT->Group[0].DIRCLR.reg = (1 << 27);
 	//PORT->Group[0].PINCFG[27].bit.INEN = 1;
-	blinkTime = 500000;
+	blinkTime = 5000000;
 	tusb_init();
-}
-
-void SysTick_Handler (void){
-	system_ticks++;
-}
-
-uint32_t board_millis(void){
-	return system_ticks;
 }
 
 void USB_Handler(void){
@@ -74,7 +65,7 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t 
     	devAddr[devNum++] = dev_addr;
 	}
 
-	blinkTime = 50000;
+	blinkTime = 500000;
 }
 
 // Invoked when device with midi interface is un-mounted
@@ -97,7 +88,7 @@ void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance){
 		devAddr[i] = devAddr[i-1];
 	}
 
-	blinkTime = 500000;
+	blinkTime = 1000000;
 }
 
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
@@ -139,8 +130,8 @@ void tuh_midi_tx_cb(uint8_t dev_addr){
 
 // Invoked when device is mounted
 void tud_mount_cb(void){
-	blinkTime = 2000;
-	blinkTime2 = 1998;
+	blinkTime = 500000;
+	blinkTime2 = 998000;
 }
 
 // Invoked when usb bus is suspended
@@ -148,10 +139,10 @@ void tud_mount_cb(void){
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en){
 	(void) remote_wakeup_en;
-	blinkTime = 100;
+	blinkTime = 1000000;
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void){
-	blinkTime = 1000;
+	blinkTime = 500000;
 }

@@ -90,13 +90,12 @@ int main(void){
 		//}
 		
 		static uint32_t timrr = 0;
-		if (timrr + blinkTime < system_ticks/**/)	{
-			timrr = system_ticks;
+		if (timrr + blinkTime < time_us_32())	{
+			timrr = time_us_32();
 			static bool hstate = 0;
 			gpio_put(LEDH, hstate);
 			hstate = !hstate;
 		}
-		system_ticks++;
     }
 }
 
