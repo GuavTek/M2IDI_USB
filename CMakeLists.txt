@@ -13,7 +13,7 @@ set(PICO_BOARD_HEADER_DIRS ${PROJECT_SOURCE_DIR}/src)
 pico_sdk_init()
 
 # rest of your project
-file(GLOB src_list CONFIGURE_DEPENDS "src/*.h" "src/*.cpp")
+file(GLOB src_list CONFIGURE_DEPENDS "src/*.cpp")
 add_executable(M2IDI_USB
     ${src_list}
 )
@@ -23,7 +23,7 @@ add_subdirectory(lib)
 # Add library files
 target_include_directories(M2IDI_USB PUBLIC src)
 
-target_link_options(M2IDI_USB PRIVATE -Xlinker --print-memory-usage)
+target_link_options(M2IDI_USB PUBLIC -Xlinker --print-memory-usage)
 target_compile_options(M2IDI_USB PRIVATE -Wall -Wextra)
 
 # Add pico_stdlib library which aggregates commonly used features
