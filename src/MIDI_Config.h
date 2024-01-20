@@ -65,17 +65,30 @@ const CAN_FIFO_t CAN_FIFO2 = {
 	.notFullEmptyInterrupt = false
 };
 
+const spi_config_t SPI_CAN_CONF = {
+	.dma_irq_num = 1,
+	.phase = SPI_CPHA_0,
+	.polarity = SPI_CPOL_0,
+	.order = SPI_MSB_FIRST,
+	.speed = 8000000,
+	.pin_tx = M2IDI_CAN_SPI_TX_PIN,
+	.pin_rx = M2IDI_CAN_SPI_RX_PIN,
+	.pin_ck = M2IDI_CAN_SPI_SCK_PIN,
+	.num_cs = 1,
+	.pin_cs = {M2IDI_CAN_SPI_CSN_PIN}
+};
 
-const spi_config_t SPI_CONF = {
-//	.sercomNum = 5,
-//	.dipoVal = 0x3,
-//	.dopoVal = 0x0,
-	.speed = 8000000//,
-//	.pinmux_mosi = PINMUX_PB02D_SERCOM5_PAD0,
-//	.pinmux_miso = PINMUX_PB23D_SERCOM5_PAD3,
-//	.pinmux_sck = PINMUX_PB03D_SERCOM5_PAD1,
-//	.num_cs = 1,
-//	.pin_cs = {PIN_PB22}
+const spi_config_t SPI_MEM_CONF = {
+	.dma_irq_num = 1,
+	.phase = SPI_CPHA_0,
+	.polarity = SPI_CPOL_0,
+	.order = SPI_MSB_FIRST,
+	.speed = 20 * 1000000,
+	.pin_tx = M2IDI_MEM_SPI_TX_PIN,
+	.pin_rx = M2IDI_MEM_SPI_RX_PIN,
+	.pin_ck = M2IDI_MEM_SPI_SCK_PIN,
+	.num_cs = 2,
+	.pin_cs = {M2IDI_MEM_SPI_CSN_RAM_PIN, M2IDI_MEM_SPI_CSN_EEPROM_PIN}
 };
 
 const CAN_Config_t CAN_CONF = {
