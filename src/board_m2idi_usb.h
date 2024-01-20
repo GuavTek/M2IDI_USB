@@ -15,9 +15,35 @@
 #ifndef LEDD 
 #define LEDD 28
 #endif
+
 // no PICO_DEFAULT_WS2812_PIN
 
-// TODO: Add USB ID, Button, and I2S pins
+// --- BUTTON ---
+#ifndef BUTTIO 
+#define BUTTIO 26
+#endif
+
+// --- USB ID ---
+#ifndef USB_ID_PIN
+#define USB_ID_PIN 29
+#endif
+
+// --- I2S ---
+#ifndef I2S_FS 
+#define I2S_FS 5
+#endif
+#ifndef I2S_BCK 
+#define I2S_BCK 4
+#endif
+#ifndef I2S_MCK 
+#define I2S_MCK 3
+#endif
+#ifndef I2S_DO 
+#define I2S_DO 2
+#endif
+#ifndef I2S_DI
+#define I2S_DI 21
+#endif
 
 // --- SPI ---
 #ifndef M2IDI_CAN_SPI
@@ -34,6 +60,9 @@
 #endif
 #ifndef M2IDI_CAN_SPI_CSN_PIN
 #define M2IDI_CAN_SPI_CSN_PIN 9
+#endif
+#ifndef M2IDI_CAN_INT_PIN
+#define M2IDI_CAN_INT_PIN 12
 #endif
 
 #ifndef M2IDI_MEM_SPI
