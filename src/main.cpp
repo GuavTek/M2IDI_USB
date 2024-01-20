@@ -14,6 +14,7 @@
 #include <tusb.h>
 #include "RingBuffer.h"
 #include "usb.h"
+#include "usb_midi_host.h"
 
 SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1);
 MCP2517_C CAN = MCP2517_C(&SPI_CAN);
@@ -209,8 +210,7 @@ void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 	length = MIDI_USB.Encode(tempData, msg, MIDI_USB.Get_Version());
 	
 	if (length > 0){
-		// TODO: select host or device when appropriate
-		//tud_midi_stream_write(0, (uint8_t*)(tempData), length);
+		usb_midi_tx(tempData, length);
 	}
 }
 
@@ -223,14 +223,29 @@ void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
 void midi_task(void){
 	// Send MIDI data over USB
 	// TODO
-
+	
+	// Device mode
 	//uint8_t packet[16];
 	//uint8_t length;
 	//while ( tud_midi_available() ) {
 	//	length = tud_midi_stream_read(packet, 16);
 	//	MIDI_USB.Decode((char*)(packet), length);
 	//}
-
+	
+	// Host mode
+	for (uint8_t i = 0; i < devNum; i++){
+		if (devPend & (1 << i)) {
+    		uint8_t cableNum;
+    		uint8_t buffer[48];
+    		uint32_t bytesRead = 69;
+			while(bytesRead){
+				bytesRead = tuh_midi_stream_read(devAddr[i], &cableNum, buffer, sizeof(buffer));
+				MIDI_USB.Decode((char*) buffer, bytesRead);
+				// TODO: send data to other devices
+			}
+			devPend &= ~(1 << i);
+		}
+	}
 }
 
 void dma1_irq_handler (){

@@ -7,6 +7,7 @@ uint32_t blinkTime = 0;
 uint32_t blinkTime2 = 0;
 uint8_t devAddr[CFG_TUH_DEVICE_MAX];
 int8_t devNum = 0;
+uint16_t devPend = 0;
 
 // Initialize clocks and pins for the USB port
 void USB_Init(){
@@ -46,6 +47,23 @@ void USB_Handler(void){
 	//tud_int_handler(0);
 	
 	tuh_int_handler(0);
+}
+
+uint32_t usb_midi_tx(char data[], uint32_t length){
+	// TODO: device mode
+	//tud_midi_stream_write(0, (uint8_t*)(tempData), length);
+	
+	// Host mode
+	if (devNum <= 0){
+		return length;
+	}
+	
+	// TODO: will this work with multiple devices?
+	for (int8_t i = 0; i < devNum; i++){
+		length = tuh_midi_stream_write(devAddr[i], /* TODO cable num */ 0, (uint8_t*) data, length);
+		tuh_midi_stream_flush(devAddr[i]);
+	}
+	return length;
 }
 
 //--------------------------------------------------------------------+
@@ -93,7 +111,7 @@ void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance){
 
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
 	int devIndex = -1;
-	for (size_t i = 0; i < devNum; i++){
+	for (int8_t i = 0; i < devNum; i++){
 		if (dev_addr == devAddr[i]) {
 			devIndex = i;
 		}
@@ -107,17 +125,7 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
         return;
     }
 
-    uint8_t cable_num;
-    uint8_t buffer[48];
-    uint32_t bytes_read = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
-    (void ) bytes_read;
-
-	static bool dstate = 0;
-	gpio_put(LEDD, dstate);
-	dstate = !dstate;
-
-    TU_LOG1("Read bytes %lu cable %u", bytes_read, cable_num);
-    TU_LOG1_MEM(buffer, bytes_read, 2);
+	devPend |= 1 << devIndex;
 }
 
 void tuh_midi_tx_cb(uint8_t dev_addr){

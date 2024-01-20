@@ -11,12 +11,15 @@ extern uint32_t blinkTime;
 extern uint32_t blinkTime2;
 extern uint8_t devAddr[CFG_TUH_DEVICE_MAX];
 extern int8_t devNum;
+extern uint16_t devPend;
 extern volatile uint32_t system_ticks;
 
 // Initialize clocks and pins for the USB port
 void USB_Init();
 	
 void USB_Handler(void);
+
+uint32_t usb_midi_tx(char data[], uint32_t length);
 
 //--------------------------------------------------------------------+
 // Host callbacks
