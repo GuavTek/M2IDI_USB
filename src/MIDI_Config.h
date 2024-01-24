@@ -12,6 +12,7 @@
 
 #include "MCP2517.h"
 #include "SPI_RP2040.h"
+#include "board_m2idi_usb.h"
 
 // Define CAN filters
 const CAN_Filter_t CAN_FLT0 = {

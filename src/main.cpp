@@ -67,6 +67,7 @@ int main(void){
 	
 	// Enable SPI interrupt
 	irq_set_exclusive_handler(DMA_IRQ_1, dma1_irq_handler);
+	irq_set_enabled(DMA_IRQ_1, true);
 
 	CAN.Init(CAN_CONF);
 	CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
