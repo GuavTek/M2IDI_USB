@@ -12,34 +12,10 @@ uint16_t devPend = 0;
 // Initialize clocks and pins for the USB port
 void USB_Init(){
 	
-	//NVMCTRL->CTRLB.reg |= NVMCTRL_CTRLB_RWS(2);
-	
-	//SysTick_Config(F_CPU/1000);
-	
-	/* USB Clock init
-	 * The USB module requires a GCLK_USB of 48 MHz ~ 0.25% clock
-	 * for low speed and full speed operation. */
-	
-	// Enable USB clock
-	//PM->APBCMASK.reg |= PM_APBBMASK_USB;
-	//PM->AHBMASK.reg |= PM_AHBMASK_USB;
-	
-	// Select generic clock
-	//GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | (GCLK_CLKCTRL_ID_USB);
+	// Enable USB ID pin?
 
-	// USB Pin Init
-	//PORT->Group[0].DIRSET.reg = (1 << 24) | (1 << 25);
-	//PORT->Group[0].OUTCLR.reg = (1 << 24) | (1 << 25);
-	//PORT->Group[0].PINCFG[24].bit.PULLEN = 0;
-	//PORT->Group[0].PINCFG[25].bit.PULLEN = 0;
 	
-	//pin_set_peripheral_function(PINMUX_PA24G_USB_DM);
-	//pin_set_peripheral_function(PINMUX_PA25G_USB_DP);
-	
-	// Enable USB ID pin
-	//PORT->Group[0].DIRCLR.reg = (1 << 27);
-	//PORT->Group[0].PINCFG[27].bit.INEN = 1;
-	blinkTime = 5000000;
+	blinkTime = 500000;
 	tusb_init();
 }
 
@@ -83,7 +59,7 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t 
     	devAddr[devNum++] = dev_addr;
 	}
 
-	blinkTime = 500000;
+	blinkTime = 100000;
 }
 
 // Invoked when device with midi interface is un-mounted
@@ -106,7 +82,7 @@ void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance){
 		devAddr[i] = devAddr[i-1];
 	}
 
-	blinkTime = 1000000;
+	blinkTime = 500000;
 }
 
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
@@ -138,8 +114,7 @@ void tuh_midi_tx_cb(uint8_t dev_addr){
 
 // Invoked when device is mounted
 void tud_mount_cb(void){
-	blinkTime = 500000;
-	blinkTime2 = 998000;
+	blinkTime = 100000;
 }
 
 // Invoked when usb bus is suspended
@@ -147,10 +122,10 @@ void tud_mount_cb(void){
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en){
 	(void) remote_wakeup_en;
-	blinkTime = 1000000;
+	blinkTime = 200000;
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void){
-	blinkTime = 500000;
+	blinkTime = 100000;
 }
