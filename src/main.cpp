@@ -8,9 +8,7 @@
 #include "SPI_RP2040.h"
 #include "MCP2517.h"
 #include "MIDI_Driver.h"
-//#include "DMA_driver.h"
-//#include "I2S_driver.h"
-//#include "Audio_driver.h"
+#include "audio_driver.h"
 #include <tusb.h>
 #include "RingBuffer.h"
 #include "usb.h"
@@ -40,7 +38,7 @@ bool hasLost;
 
 int main(void){
 	// Board init
-	set_sys_clock_khz(120000, true);
+	set_sys_clock_khz(132000, true);
 
 	gpio_init(LEDH);
 	gpio_init(LEDD);
@@ -53,6 +51,7 @@ int main(void){
 
 	SPI_CAN.Init(SPI_CAN_CONF);
 	//i2s_init(44100);
+	audio_init();
 	
 	//dma_init(base_descriptor, wrback_descriptor);
 	//audio_dma_init();
