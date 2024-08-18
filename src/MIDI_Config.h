@@ -3,7 +3,7 @@
  *
  * Created: 15/10/2021 22:31:05
  *  Author: GuavTek
- */ 
+ */
 
 // Configurations for MIDI application
 
@@ -75,7 +75,6 @@ const spi_config_t SPI_CAN_CONF = {
 	.pin_tx = M2IDI_CAN_SPI_TX_PIN,
 	.pin_rx = M2IDI_CAN_SPI_RX_PIN,
 	.pin_ck = M2IDI_CAN_SPI_SCK_PIN,
-	.num_cs = 1,
 	.pin_cs = {M2IDI_CAN_SPI_CSN_PIN}
 };
 
@@ -88,12 +87,10 @@ const spi_config_t SPI_MEM_CONF = {
 	.pin_tx = M2IDI_MEM_SPI_TX_PIN,
 	.pin_rx = M2IDI_MEM_SPI_RX_PIN,
 	.pin_ck = M2IDI_MEM_SPI_SCK_PIN,
-	.num_cs = 2,
 	.pin_cs = {M2IDI_MEM_SPI_CSN_RAM_PIN, M2IDI_MEM_SPI_CSN_EEPROM_PIN}
 };
 
 const CAN_Config_t CAN_CONF = {
-	.comSlaveNum = 0,
 	.clkOutDiv = CAN_Config_t::clkOutDiv1,
 	.sysClkDiv = false,
 	.clkDisable = false,

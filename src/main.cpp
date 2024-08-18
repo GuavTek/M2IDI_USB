@@ -14,8 +14,8 @@
 #include "usb.h"
 #include "usb_midi_host.h"
 
-SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1);
-MCP2517_C CAN = MCP2517_C(&SPI_CAN);
+SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1, 1);
+MCP2517_C CAN = MCP2517_C(&SPI_CAN, 0);
 RingBuffer<8, MIDI_UMP_t> canBuffer;
 
 void dma1_irq_handler ();
@@ -52,10 +52,10 @@ int main(void){
 	SPI_CAN.Init(SPI_CAN_CONF);
 	//i2s_init(44100);
 	audio_init();
-	
+
 	//dma_init(base_descriptor, wrback_descriptor);
 	//audio_dma_init();
-	
+
 	// Configure button pin with interrupt
 	// TODO
 
@@ -63,7 +63,7 @@ int main(void){
 
 	MIDI_CAN.Set_handler(MIDI_CAN_UMP_handler);
 	MIDI_USB.Set_handler(MIDI_USB_UMP_handler);
-	
+
 	// Enable SPI interrupt
 	irq_set_exclusive_handler(DMA_IRQ_1, dma1_irq_handler);
 	irq_set_enabled(DMA_IRQ_1, true);
@@ -71,22 +71,22 @@ int main(void){
 	CAN.Init(CAN_CONF);
 	CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
 	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
-	
+
     while (true){
 		// USB tasks
 		//tud_task();
 		tuh_task();
-		
+
 		//audio_task();
 		midi_task();
-		
+
 		// Detect usb status
 		if (gpio_get(USB_ID_PIN)){
 			gpio_put(LEDD, 1);
 		} else {
 			gpio_put(LEDD, 0);
 		}
-		
+
 		if (CAN.Ready()){
 			check_can_int();
 		}
@@ -95,9 +95,9 @@ int main(void){
 			char buff[16];
 			MIDI_UMP_t msg;
 			uint8_t length;
-			
+
 			if (hasLost) {
-				// Recover lost message 
+				// Recover lost message
 				hasLost = false;
 				msg = lostMsg;
 			} else {
@@ -178,7 +178,7 @@ int main(void){
 				CAN.Send_Message();
 			}
 		}
-		
+
 		static uint32_t timrr = 0;
 		if (timrr + blinkTime < time_us_32())	{
 			timrr = time_us_32();
@@ -213,7 +213,7 @@ void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 	char tempData[16];
 	uint8_t length;
 	length = MIDI_USB.Encode(tempData, msg, MIDI_USB.Get_Version());
-	
+
 	if (length > 0){
 		usb_midi_tx(tempData, length);
 	}
@@ -228,7 +228,7 @@ void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
 void midi_task(void){
 	// Send MIDI data over USB
 	// TODO
-	
+
 	// Device mode
 	//uint8_t packet[16];
 	//uint8_t length;
@@ -236,7 +236,7 @@ void midi_task(void){
 	//	length = tud_midi_stream_read(packet, 16);
 	//	MIDI_USB.Decode((char*)(packet), length);
 	//}
-	
+
 	// Host mode
 	for (uint8_t i = 0; i < devNum; i++){
 		if (devPend & (1 << i)) {
