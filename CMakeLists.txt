@@ -13,7 +13,7 @@ set(PICO_BOARD_HEADER_DIRS ${PROJECT_SOURCE_DIR}/src)
 pico_sdk_init()
 
 # rest of your project
-file(GLOB src_list CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB src_list CONFIGURE_DEPENDS src/*.cpp src/*.c)
 add_executable(M2IDI_USB
     ${src_list}
 )
@@ -28,8 +28,12 @@ target_include_directories(M2IDI_USB PUBLIC src)
 target_link_options(M2IDI_USB PUBLIC -Xlinker --print-memory-usage)
 target_compile_options(M2IDI_USB PRIVATE -Wall -Wextra)
 
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_RELEASE -O3)
+set(CMAKE_CXX_FLAGS_DEBUG -g)
+
 # Add pico_stdlib library which aggregates commonly used features
-target_link_libraries(M2IDI_USB pico_stdlib hardware_pio hardware_timer hardware_spi hardware_dma midi_driver mcp2517_driver tinyusb_host usb_midi_host_app_driver)# tinyusb_device)
+target_link_libraries(M2IDI_USB pico_stdlib hardware_pio hardware_timer hardware_spi hardware_dma midi_driver mcp2517_driver tinyusb_host usb_midi_host_app_driver tinyusb_device)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(M2IDI_USB)

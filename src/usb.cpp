@@ -8,36 +8,68 @@ uint32_t blinkTime2 = 0;
 uint8_t devAddr[CFG_TUH_DEVICE_MAX];
 int8_t devNum = 0;
 uint16_t devPend = 0;
+bool host_active = 1;
 
 // Initialize clocks and pins for the USB port
 void USB_Init(){
-	
-	// Enable USB ID pin?
+	// Enable USB ID pin
+	gpio_init(USB_ID_PIN);
+	gpio_set_dir(USB_ID_PIN, 0);
+	gpio_pull_up(USB_ID_PIN);
 
-	
 	blinkTime = 500000;
-	tusb_init();
+	host_active = gpio_get(USB_ID_PIN);
+
+	// TODO: Why does USB ID pin stop working when device mode activates??????
+	if (host_active){
+		tuh_init(0);
+	} else {
+		//tud_init(0);
+	}
+}
+
+void USB_Service(){
+	// Detect usb status
+	if(gpio_get(USB_ID_PIN)){
+		if (!host_active) {
+			host_active = 1;
+			//tud_deinit(0);
+			tuh_init(0);
+		}
+		tuh_task();
+	} else {
+		if (host_active){
+			host_active = 0;
+			tuh_deinit(0);
+			//tud_init(0);
+		}
+		//tud_task();
+	}
 }
 
 void USB_Handler(void){
-	//tud_int_handler(0);
-	
-	tuh_int_handler(0);
+	if (host_active){
+		tuh_int_handler(0);
+	} else {
+		//tud_int_handler(0);
+	}
 }
 
 uint32_t usb_midi_tx(char data[], uint32_t length){
-	// TODO: device mode
-	//tud_midi_stream_write(0, (uint8_t*)(tempData), length);
-	
-	// Host mode
-	if (devNum <= 0){
-		return length;
-	}
-	
-	// TODO: will this work with multiple devices?
-	for (int8_t i = 0; i < devNum; i++){
-		length = tuh_midi_stream_write(devAddr[i], /* TODO cable num */ 0, (uint8_t*) data, length);
-		tuh_midi_stream_flush(devAddr[i]);
+	if (host_active){
+		// Host mode
+		if (devNum <= 0){
+			return length;
+		}
+
+		// TODO: will this work with multiple devices?
+		for (int8_t i = 0; i < devNum; i++){
+			length = tuh_midi_stream_write(devAddr[i], /* TODO cable num */ 0, (uint8_t*) data, length);
+			tuh_midi_stream_flush(devAddr[i]);
+		}
+	} else {
+		// device mode
+		//length = tud_midi_stream_write(0, (uint8_t*) data, length);
 	}
 	return length;
 }
@@ -58,7 +90,7 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t 
 	if (devNum < CFG_TUH_DEVICE_MAX) {
     	devAddr[devNum++] = dev_addr;
 	}
-
+	// TODO: some devices like beatstep have multiple cables defined
 	blinkTime = 100000;
 }
 
@@ -92,7 +124,7 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
 			devIndex = i;
 		}
 	}
-	
+
     if (devIndex < 0){
         return;
     }
@@ -117,15 +149,20 @@ void tud_mount_cb(void){
 	blinkTime = 100000;
 }
 
+// Invoked when usb bus is resumed
+void tud_resume_cb(void){
+	blinkTime = 100000;
+}
+
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allow us  to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en){
 	(void) remote_wakeup_en;
-	blinkTime = 200000;
+	blinkTime = 500000;
 }
 
-// Invoked when usb bus is resumed
-void tud_resume_cb(void){
-	blinkTime = 100000;
+// Invoked when device is unmounted
+void tud_umount_cb(void){
+	blinkTime = 500000;
 }

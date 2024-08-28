@@ -27,7 +27,7 @@ extern "C" {
 #define CFG_TUSB_MCU OPT_MCU_RP2040
 #define CFG_TUSB_OS OPT_OS_NONE
 #define CFG_TUSB_DEBUG        0
-#define CFG_TUD_ENABLED       0
+#define CFG_TUD_ENABLED       1
 #define CFG_TUD_MAX_SPEED     BOARD_TUD_MAX_SPEED
 
 //#define CFG_TUH_ENABLED       1
@@ -35,7 +35,7 @@ extern "C" {
 #define CFG_TUH_MAX_SPEED     BOARD_TUH_MAX_SPEED
 
 #define OPT_MODE_DUAL (OPT_MODE_HOST | OPT_MODE_DEVICE)
-#define CFG_TUSB_RHPORT0_MODE OPT_MODE_HOST
+#define CFG_TUSB_RHPORT0_MODE OPT_MODE_DUAL
 //#define CFG_TUSB_RHPORT0_MODE OPT_MODE_DUAL
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment.
@@ -46,7 +46,7 @@ extern "C" {
  * - CFG_TUSB_MEM_ALIGN   : __attribute__ ((aligned(4)))
  */
 #ifndef CFG_TUSB_MEM_SECTION
-#define CFG_TUSB_MEM_SECTION	//__attribute__ (( section(".usb_ram") ))
+#define CFG_TUSB_MEM_SECTION	__attribute__ (( section(".usb_ram") ))
 #endif
 
 #ifndef CFG_TUSB_MEM_ALIGN

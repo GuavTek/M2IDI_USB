@@ -9,9 +9,9 @@
 #include "MCP2517.h"
 #include "MIDI_Driver.h"
 #include "audio_driver.h"
+#include "usb.h"
 #include <tusb.h>
 #include "RingBuffer.h"
-#include "usb.h"
 #include "usb_midi_host.h"
 
 SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1, 1);
@@ -46,8 +46,6 @@ int main(void){
 	gpio_set_dir(LEDD, GPIO_OUT);
 	gpio_init(M2IDI_CAN_INT_PIN);
 	gpio_set_dir(M2IDI_CAN_INT_PIN, GPIO_IN);
-	gpio_init(USB_ID_PIN);
-	gpio_set_dir(USB_ID_PIN, GPIO_IN);
 
 	SPI_CAN.Init(SPI_CAN_CONF);
 	//i2s_init(44100);
@@ -73,19 +71,9 @@ int main(void){
 	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
 
     while (true){
-		// USB tasks
-		//tud_task();
-		tuh_task();
-
 		//audio_task();
 		midi_task();
-
-		// Detect usb status
-		if (gpio_get(USB_ID_PIN)){
-			gpio_put(LEDD, 1);
-		} else {
-			gpio_put(LEDD, 0);
-		}
+		USB_Service();
 
 		if (CAN.Ready()){
 			check_can_int();
@@ -180,10 +168,17 @@ int main(void){
 		}
 
 		static uint32_t timrr = 0;
-		if (timrr + blinkTime < time_us_32())	{
-			timrr = time_us_32();
+		volatile uint32_t us_time = time_us_32();
+		if (timrr <= time_us_32())	{
+			timrr = time_us_32() + blinkTime;
 			static bool hstate = 0;
-			gpio_put(LEDH, hstate);
+			if (host_active){
+				gpio_put(LEDH, hstate);
+				gpio_put(LEDD, 0);
+			} else {
+				gpio_put(LEDH, 0);
+				gpio_put(LEDD, hstate);
+			}
 			hstate = !hstate;
 		}
     }
@@ -227,28 +222,29 @@ void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
 
 void midi_task(void){
 	// Send MIDI data over USB
-	// TODO
-
-	// Device mode
-	//uint8_t packet[16];
-	//uint8_t length;
-	//while ( tud_midi_available() ) {
-	//	length = tud_midi_stream_read(packet, 16);
-	//	MIDI_USB.Decode((char*)(packet), length);
-	//}
-
-	// Host mode
-	for (uint8_t i = 0; i < devNum; i++){
-		if (devPend & (1 << i)) {
-    		uint8_t cableNum;
-    		uint8_t buffer[48];
-    		uint32_t bytesRead = 69;
-			while(bytesRead){
-				bytesRead = tuh_midi_stream_read(devAddr[i], &cableNum, buffer, sizeof(buffer));
-				MIDI_USB.Decode((char*) buffer, bytesRead);
-				// TODO: send data to other devices
+	if (host_active){
+		// Host mode
+		for (uint8_t i = 0; i < devNum; i++){
+			if (devPend & (1 << i)) {
+    			uint8_t cableNum;
+    			uint8_t buffer[48];
+    			uint32_t bytesRead = 69;
+				while(bytesRead){
+					bytesRead = tuh_midi_stream_read(devAddr[i], &cableNum, buffer, sizeof(buffer));
+					MIDI_USB.Decode((char*) buffer, bytesRead);
+					// TODO: send data to other devices
+				}
+				devPend &= ~(1 << i);
 			}
-			devPend &= ~(1 << i);
+		}
+	} else {
+		return;	// TODO: remove when device mode fixed
+		// Device mode
+		uint8_t packet[16];
+		uint8_t length;
+		while ( tud_midi_available() ) {
+			length = tud_midi_stream_read(packet, 16);
+			MIDI_USB.Decode((char*)(packet), length);
 		}
 	}
 }
