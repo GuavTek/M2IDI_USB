@@ -24,16 +24,27 @@ void USB_Init(){
 	if (host_active){
 		tuh_init(0);
 	} else {
-		//tud_init(0);
+		tud_init(0);
 	}
 }
 
 void USB_Service(){
+	// The module gets stuck in device mode if we don't disconnect the device
+	// But it also can't be mounted while disconnected
+	// It automatically gets re-connected by tud_task
+	// Therefore disconnect for 1s periods while not mounted
+	if (!host_active && !tud_mounted()) {
+		if (time_us_32() & (1 << 20)){
+			tud_disconnect();
+		} else {
+			tud_connect();
+		}
+	}
 	// Detect usb status
 	if(gpio_get(USB_ID_PIN)){
 		if (!host_active) {
 			host_active = 1;
-			//tud_deinit(0);
+			tud_deinit(0);
 			tuh_init(0);
 		}
 		tuh_task();
@@ -41,9 +52,9 @@ void USB_Service(){
 		if (host_active){
 			host_active = 0;
 			tuh_deinit(0);
-			//tud_init(0);
+			tud_init(0);
 		}
-		//tud_task();
+		tud_task();
 	}
 }
 
@@ -51,7 +62,7 @@ void USB_Handler(void){
 	if (host_active){
 		tuh_int_handler(0);
 	} else {
-		//tud_int_handler(0);
+		tud_int_handler(0);
 	}
 }
 
@@ -69,7 +80,7 @@ uint32_t usb_midi_tx(char data[], uint32_t length){
 		}
 	} else {
 		// device mode
-		//length = tud_midi_stream_write(0, (uint8_t*) data, length);
+		length = tud_midi_stream_write(0, (uint8_t*) data, length);
 	}
 	return length;
 }

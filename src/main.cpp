@@ -238,7 +238,6 @@ void midi_task(void){
 			}
 		}
 	} else {
-		return;	// TODO: remove when device mode fixed
 		// Device mode
 		uint8_t packet[16];
 		uint8_t length;
