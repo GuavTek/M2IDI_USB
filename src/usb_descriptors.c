@@ -24,9 +24,10 @@
  *
  */
 
-
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "pico/stdlib.h"
+#include "pico/unique_id.h"
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
@@ -117,15 +118,13 @@ char const* string_desc_arr [] =
 	(const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
 	"GuavTek",                      // 1: Manufacturer
 	"M2IDI Eurorack interface",              // 2: Product
-	"000001",                       // 3: Serials, should use chip ID
-	#if (CFG_TUD_AUDIO > 0)
+	NULL,                       // 3: Serials, will use unique ID
 	"Eurorack Input",             // 4: Audio Interface
 	"Eurorack Output",           // 5: Audio Interface
-	#endif  // (CFG_TUD_AUDIO > 0)
 	"Eurorack MIDI",				// 6: MIDI Interface
 };
 
-static uint16_t _desc_str[32];
+static uint16_t _desc_str[32 + 1];
 
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
@@ -135,13 +134,26 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 
   uint8_t chr_count;
 
-  if (index == 0)
-  {
+  if (index == 0){
+    // Language ID
     memcpy(&_desc_str[1], string_desc_arr[0], 2);
     chr_count = 1;
-  }
-  else
-  {
+  } else if (index == 3){
+    pico_unique_board_id_t pico_id;
+    pico_get_unique_board_id(&pico_id);
+    for (uint8_t i = 0; i < 8; i++){
+      for (uint8_t j = 0; j < 2; j++){
+        uint8_t jj = (i << 1) + j;
+        const char nibble2hex[16] = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+        };
+        uint8_t nibble = (pico_id.id[i] >> (4*j)) & 0xf;
+        _desc_str[1+jj] = nibble2hex[nibble];
+      }
+    }
+    chr_count = 16;
+  } else {
     // Convert ASCII string into UTF-16
 
     if (!(index < sizeof(string_desc_arr)/sizeof(string_desc_arr[0]))) return NULL;
@@ -150,10 +162,10 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 
     // Cap at max char
     chr_count = strlen(str);
-    if (chr_count > 31) chr_count = 31;
+    size_t const max_count = sizeof(_desc_str) / sizeof(_desc_str[0]) - 1; // -1 for string type
+    if ( chr_count > max_count ) chr_count = max_count;
 
-    for (uint8_t i = 0; i < chr_count; i++)
-    {
+    for (uint8_t i = 0; i < chr_count; i++){
       _desc_str[1 + i] = str[i];
     }
   }
