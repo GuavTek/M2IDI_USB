@@ -9,17 +9,17 @@
 #endif
 
 // --- LED ---
-#ifndef LEDH 
+#ifndef LEDH
 #define LEDH 27
 #endif
-#ifndef LEDD 
+#ifndef LEDD
 #define LEDD 28
 #endif
 
 // no PICO_DEFAULT_WS2812_PIN
 
 // --- BUTTON ---
-#ifndef BUTTIO 
+#ifndef BUTTIO
 #define BUTTIO 26
 #endif
 
@@ -29,16 +29,16 @@
 #endif
 
 // --- I2S ---
-#ifndef I2S_FS 
+#ifndef I2S_FS
 #define I2S_FS 5
 #endif
-#ifndef I2S_BCK 
+#ifndef I2S_BCK
 #define I2S_BCK 4
 #endif
-#ifndef I2S_MCK 
+#ifndef I2S_MCK
 #define I2S_MCK 3
 #endif
-#ifndef I2S_DO 
+#ifndef I2S_DO
 #define I2S_DO 2
 #endif
 #ifndef I2S_DI
@@ -86,9 +86,8 @@
 
 // --- FLASH ---
 
-// TODO: why IS25 not working? Would allow faster flash reads
-#define PICO_BOOT_STAGE2_CHOOSE_IS25LP080 0
-#define PICO_BOOT_STAGE2_CHOOSE_GENERIC_03H 1
+#define PICO_BOOT_STAGE2_CHOOSE_IS25LP080 1
+#define PICO_BOOT_STAGE2_CHOOSE_GENERIC_03H 0
 
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (4 * 1024 * 1024)
