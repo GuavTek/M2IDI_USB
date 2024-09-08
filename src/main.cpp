@@ -18,7 +18,7 @@ SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1, 1);
 MCP2517_C CAN = MCP2517_C(&SPI_CAN, 0);
 RingBuffer<8, MIDI_UMP_t> canBuffer;
 
-void dma1_irq_handler ();
+void dma1_irq_handler();
 void CAN_Receive_Header(CAN_Rx_msg_t* data);
 void CAN_Receive_Data(char* data, uint8_t length);
 void audio_task(void);
@@ -48,16 +48,12 @@ int main(void){
 	gpio_set_dir(M2IDI_CAN_INT_PIN, GPIO_IN);
 
 	SPI_CAN.Init(SPI_CAN_CONF);
-	//i2s_init(44100);
-	audio_init();
-
-	//dma_init(base_descriptor, wrback_descriptor);
-	//audio_dma_init();
 
 	// Configure button pin with interrupt
 	// TODO
 
 	USB_Init();
+	audio_init();
 
 	MIDI_CAN.Set_handler(MIDI_CAN_UMP_handler);
 	MIDI_USB.Set_handler(MIDI_USB_UMP_handler);
@@ -71,7 +67,7 @@ int main(void){
 	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
 
     while (true){
-		//audio_task();
+		audio_task();
 		midi_task();
 		USB_Service();
 

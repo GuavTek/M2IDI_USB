@@ -3,40 +3,11 @@
  *
  * Created: 15/07/2022 12:48:11
  *  Author: GuavTek
- */ 
+ */
 
 #include "audio_driver.h"
 #include "i2s.h"
-
-/*
-typedef struct i2s_config {
-    uint32_t fs;
-    uint32_t sck_mult;
-    uint8_t  bit_depth;
-    uint8_t  sck_pin;
-    uint8_t  dout_pin;
-    uint8_t  din_pin;
-    uint8_t  clock_pin_base;
-    bool     sck_enable;
-} i2s_config;
-typedef struct pio_i2s {
-    PIO        pio;
-    uint8_t    sm_mask;
-    uint8_t    sm_sck;
-    uint8_t    sm_dout;
-    uint8_t    sm_din;
-    uint       dma_ch_in_ctrl;
-    uint       dma_ch_in_data;
-    uint       dma_ch_out_ctrl;
-    uint       dma_ch_out_data;
-    int32_t*   in_ctrl_blocks[2];  // Control blocks MUST have 8-byte alignment.
-    int32_t*   out_ctrl_blocks[2];
-    int32_t    input_buffer[STEREO_BUFFER_SIZE * 2];
-    int32_t    output_buffer[STEREO_BUFFER_SIZE * 2];
-    i2s_config config;
-} pio_i2s;
-*/
-static __attribute__((aligned(8))) pio_i2s i2s;
+#include "hardware/dma.h"
 
 bool mic_active = false;
 bool spk_active = false;
@@ -129,7 +100,7 @@ static bool tud_audio_clock_get_request(uint8_t rhport, audio_control_request_t 
 				rangef.subrange[i].bRes = 0;
 				TU_LOG1("Range %d (%d, %d, %d)\r\n", i, (int)rangef.subrange[i].bMin, (int)rangef.subrange[i].bMax, (int)rangef.subrange[i].bRes);
 			}
-			
+
 			return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &rangef, sizeof(rangef));
 		}
 	}
@@ -157,15 +128,15 @@ static bool tud_audio_clock_set_request(uint8_t rhport, audio_control_request_t 
 		TU_VERIFY(request->wLength == sizeof(audio_control_cur_4_t));
 
 		current_sample_rate = ((audio_control_cur_4_t const *)buf)->bCur;
-		
+
 		i2s_set_freq(current_sample_rate);	// TODO
-		
+
 		if (current_resolution_in == 24){
 			byte_per_frame = current_sample_rate * 2 * 32 / 8000;
 		} else {
 			byte_per_frame = current_sample_rate * 2 * current_resolution_in / 8000;
 		}
-		
+
 		TU_LOG1("Clock set current freq: %ld\r\n", current_sample_rate);
 
 		return true;
@@ -297,7 +268,7 @@ bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const 
 		spk_active = false;
 		spk_data_new = 0;
 	}
-	
+
 	if (ITF_NUM_AUDIO_STREAMING_MIC == itf && alt == 0){
 		//current_resolution_in = 0;
 		blinkTime2 = 100;
@@ -306,7 +277,7 @@ bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const 
 		//dma_suspend(0);
 		mic_active = false;
 	}
-	
+
 	return true;
 }
 
@@ -314,7 +285,7 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 	(void)rhport;
 	uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
 	uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
-		
+
 	TU_LOG2("Set interface %d alt %d\r\n", itf, alt);
 	if (ITF_NUM_AUDIO_STREAMING_SPK == itf && alt != 0) {
 		current_resolution_out = resolutions_per_format[alt-1];
@@ -322,14 +293,14 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 		i2s_set_output_wordsize(current_resolution_out);	// TODO
 		// Attach DMA
 		//dma_resume(1);
-		
+
 		// Clear buffer when streaming format is changed
 		spk_data_new = 0;
 		i2s_tx_descriptor_a->btctrl.valid = 0;
 		i2s_tx_descriptor_b->btctrl.valid = 0;
 		spk_active = true;
 	}
-	
+
 	if (ITF_NUM_AUDIO_STREAMING_MIC == itf && alt != 0) {
 		current_resolution_in = resolutions_per_format[alt-1];
 		blinkTime2 = 40;
@@ -341,7 +312,7 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 		}
 		// Attach DMA
 		//dma_resume(0);
-		
+
 		//i2s_rx_descriptor_a->btctrl.valid = 0;
 		//i2s_rx_descriptor_b->btctrl.valid = 0;
 		mic_active = true;
@@ -360,7 +331,7 @@ inline int32_t pid_step(int32_t delta) {
 	static int32_t pid_integrate = 0;
 	static int32_t delta_prev = 0;
 	int32_t temp_pid;
-	
+
 	pid_integrate += delta * pid_Ki;
 	int32_t pid_current = pid_Kp * delta + (pid_integrate >> pid_i_div);
 	temp_pid = pid_current + pid_Kd * (delta - delta_prev);
@@ -373,14 +344,14 @@ bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, ui
 	(void)func_id;
 	(void)ep_out;
 	(void)cur_alt_setting;
-	
+
 	const uint32_t midPoint = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 2;
 	int32_t delta = spk_data_new - midPoint;
-	
+
 	i2s_adjust_freq(pid_step(delta));	// TODO
-	
+
 	spk_data_new += n_bytes_received;
-	
+
 	return true;
 }
 
@@ -389,18 +360,18 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	(void)func_id;
 	(void)ep_in;
 	(void)cur_alt_setting;
-	
+
 	// Running average (current + last) >> 1;
 	static int16_t avg_bytes_copied;
 	avg_bytes_copied += n_bytes_copied;
 	avg_bytes_copied >>= 1;
-	
+
 	if (!spk_active){
 		int32_t delta = byte_per_frame - avg_bytes_copied;
-				
+
 		i2s_adjust_freq(pid_step(delta));	// TODO
 	}
-		
+
 	return true;
 }
 #endif // (CFG_TUD_AUDIO > 0)
@@ -409,38 +380,43 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 // AUDIO Task
 //--------------------------------------------------------------------+
 
-//uint32_t* const i2s_tx_reg = (uint32_t*) &I2S->DATA[1].reg;
-//uint32_t* const i2s_rx_reg = (uint32_t*) &I2S->DATA[0].reg;
+bool i2s_buff_swapped;
 
-void i2s_callback(){
-
+static void i2s_callback(){
+	i2s_buff_swapped = 1;
 }
 
 void audio_init(){
-	i2s.config.bit_depth = 32;
-	i2s.config.clock_pin_base = I2S_BCK;
-	i2s.config.din_pin = I2S_DI;
-	i2s.config.dout_pin = I2S_DO;
-	i2s.config.sck_pin = I2S_MCK;
-	i2s.config.fs = current_sample_rate;
-	i2s.config.sck_enable = true;
-	i2s.config.sck_mult = 256;
-	// TODO: init audio?
-    //i2s_program_start_synched(pio0, &i2s.config, i2s_callback, &i2s);
+	i2s_config conf;
+	conf.bit_depth = 32;
+	conf.clock_pin_base = I2S_BCK; //	I2S_FS is BCK + 1
+	conf.din_pin = I2S_DI;
+	conf.dout_pin = I2S_DO;
+	conf.mck_pin = I2S_MCK;
+	conf.fs = current_sample_rate;
+	conf.mck_enable = true;
+	conf.mck_mult = 256;
+    i2s_program_init(pio0, &conf, i2s_callback);
 }
 
 void audio_task(void){
-	
+
+	if (i2s_buff_swapped){
+		i2s_buff_swapped = 0;
+		uint32_t temp[STEREO_BUFFER_SIZE];
+		i2s_read_buff(temp);
+		i2s_write_buff(temp);
+	}
 	// Speaker data waiting?
 	if (spk_data_new != 0){
 		// Check if buffer is valid, and is not being processed
-		
+
 	}
-	
+
 	if (spk_active){
         // Load tx buffer
 	}
-	
+
 	if (mic_active){
 		// Read rx buffer if it is valid
     }
