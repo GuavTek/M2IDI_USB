@@ -1,4 +1,4 @@
-/* 
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2020 Jerzy Kasenbreg
@@ -38,11 +38,9 @@
 
 enum
 {
-	#if (CFG_TUD_AUDIO > 0)
 	ITF_NUM_AUDIO_CONTROL = 0,
 	ITF_NUM_AUDIO_STREAMING_SPK,
 	ITF_NUM_AUDIO_STREAMING_MIC,
-	#endif	// (CFG_TUD_AUDIO > 0)
 	ITF_NUM_MIDI,
 	ITF_NUM_MIDI_STREAMING,
 	ITF_NUM_TOTAL

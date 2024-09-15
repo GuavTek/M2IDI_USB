@@ -1,4 +1,4 @@
-/* 
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2020 Ha Thach (tinyusb.org)
@@ -76,27 +76,23 @@ uint8_t const * tud_descriptor_device_cb(void)
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
-#define CONFIG_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + CFG_TUD_AUDIO * TUD_AUDIO_HEADSET_STEREO_DESC_LEN + TUD_MIDI_DESC_LEN)
+#define CONFIG_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + TUD_AUDIO_HEADSET_STEREO_DESC_LEN + TUD_MIDI_DESC_LEN)
 
-// 0 control, 1 In, 2 Bulk, 3 Iso, 4 In etc...
-#define EPNUM_AUDIO_IN    0x03
-#define EPNUM_AUDIO_OUT   0x06
-#define EPNUM_MIDI_OUT   0x02
-#define EPNUM_MIDI_IN   0x02
+#define EPNUM_AUDIO_IN    0x01
+#define EPNUM_AUDIO_OUT   0x01
+#define EPNUM_MIDI_OUT   0x03
+#define EPNUM_MIDI_IN   0x03
 
 uint8_t const desc_configuration[] =
 {
     // Interface count, string index, total length, attribute, power in mA
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_SELF_POWERED, 0),
 
-	#if (CFG_TUD_AUDIO > 0)
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_AUDIO_HEADSET_STEREO_DESCRIPTOR(2, EPNUM_AUDIO_OUT, EPNUM_AUDIO_IN | 0x80),
-	#endif // (CFG_TUD_AUDIO > 0)
-	
-	
+
     // Interface number, string index, EP Out & EP In address, EP size
-    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, ITF_NUM_TOTAL, EPNUM_MIDI_OUT, (0x80 | EPNUM_MIDI_IN), (TUD_OPT_HIGH_SPEED ? 512 : 64))
+    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, ITF_NUM_TOTAL, EPNUM_MIDI_OUT, (0x80 | EPNUM_MIDI_IN), 64)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR

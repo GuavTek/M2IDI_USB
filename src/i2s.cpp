@@ -50,14 +50,14 @@ static void set_clocks(const i2s_config* config) {
 }
 
 // Change samplerate
-void set_samplerate(uint32_t rate){
+void i2s_set_samplerate(uint32_t rate){
     // halt state-machines
-    pio_set_sm_mask_enabled(i2s.pio, i2s.sm_mask, 0);
+    //pio_set_sm_mask_enabled(i2s.pio, i2s.sm_mask, 0);
     // reset clock-dividers
     pio_clkdiv_restart_sm_mask(i2s.pio, i2s.sm_mask);
     i2s.config.fs = rate;
     set_clocks(&i2s.config);
-    pio_enable_sm_mask_in_sync(i2s.pio, i2s.sm_mask);
+    //pio_enable_sm_mask_in_sync(i2s.pio, i2s.sm_mask);
 }
 
 static void dma_double_buffer_init() {
@@ -188,18 +188,18 @@ void i2s_write_buff(uint32_t* buff){
 }
 
 void i2s_stop(){
-    pio_set_sm_mask_enabled(i2s.pio, i2s.sm_mask, 0);
-    pio_restart_sm_mask(i2s.pio, i2s.sm_mask);
-    dma_channel_abort(i2s.dma_ch_in_ctrl);
-    dma_channel_abort(i2s.dma_ch_in_data);
-    dma_channel_abort(i2s.dma_ch_out_ctrl);
-    dma_channel_abort(i2s.dma_ch_out_data);
+    //pio_set_sm_mask_enabled(i2s.pio, i2s.sm_mask, 0);
+    //pio_restart_sm_mask(i2s.pio, i2s.sm_mask);
+    //dma_channel_abort(i2s.dma_ch_in_ctrl);
+    //dma_channel_abort(i2s.dma_ch_in_data);
+    //dma_channel_abort(i2s.dma_ch_out_ctrl);
+    //dma_channel_abort(i2s.dma_ch_out_data);
 }
 
 void i2s_start(){
-    dma_channel_start(i2s.dma_ch_in_ctrl);
-    dma_channel_start(i2s.dma_ch_out_ctrl);
-    pio_enable_sm_mask_in_sync(i2s.pio, i2s.sm_mask);
+    //dma_channel_start(i2s.dma_ch_in_ctrl);
+    //dma_channel_start(i2s.dma_ch_out_ctrl);
+    //pio_enable_sm_mask_in_sync(i2s.pio, i2s.sm_mask);
 }
 
 void dma_cb(){

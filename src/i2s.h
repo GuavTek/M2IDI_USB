@@ -36,7 +36,7 @@ typedef struct pio_i2s {
 void i2s_program_init(PIO pio, const i2s_config* config, void (*i2s_cb)(void));
 void i2s_stop();
 void i2s_start();
-void set_samplerate(uint32_t rate);
+void i2s_set_samplerate(uint32_t rate);
 uint8_t i2s_get_active_buff();
 void i2s_read_buff(uint32_t* buff);
 void i2s_write_buff(uint32_t* buff);
