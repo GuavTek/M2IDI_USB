@@ -436,11 +436,18 @@ void audio_task(void){
 			}
 			i2s_write_buff(temp);
 		}
-		if (mic_active){
-			wordsize = current_resolution_in == 16 ? 2 : 4;
+		if (mic_active){	// TODO: buffer it better
 			i2s_read_buff(temp);
-			// TODO: 16-bit data must be compressed from 32-bit words
-			tud_audio_write(temp, STEREO_BUFFER_SIZE*wordsize);
+			if (current_resolution_in == 16){
+				uint16_t buff16[STEREO_BUFFER_SIZE];
+				for(uint16_t i = 0; i < STEREO_BUFFER_SIZE; i++){
+					temp[i] >>= 16;
+					buff16[i] = temp[i];
+				}
+				tud_audio_write(buff16, STEREO_BUFFER_SIZE * 2);
+			} else {
+				tud_audio_write(temp, STEREO_BUFFER_SIZE * 4);
 		}
-	}//*/
+		}
+	}
 }
