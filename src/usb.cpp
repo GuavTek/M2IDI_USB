@@ -2,6 +2,7 @@
 #include <tusb.h>
 #include "usb_midi_host.h"
 #include "pico/stdlib.h"
+#include "board_m2idi_usb.h"
 
 uint32_t blinkTime = 0;
 uint32_t blinkTime2 = 0;

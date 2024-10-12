@@ -1,6 +1,7 @@
 #ifndef _USB_H_
 #define _USB_H_
 
+#include "pico/stdlib.h"
 #include <stdio.h>
 #include "tusb_config.h"
 

@@ -9,6 +9,7 @@
 #include "i2s.h"
 #include "hardware/dma.h"
 #include "usb_descriptors.h"
+#include "board_m2idi_usb.h"
 
 bool mic_active = false;
 bool spk_active = false;
