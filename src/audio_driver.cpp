@@ -21,6 +21,7 @@ extern volatile int64_t dropped_bytes;
 // Supported sample rates
 const uint32_t sample_rates[] = {44100, 48000, 88200, 96000};
 uint32_t current_sample_rate  = 44100;
+uint32_t real_sample_rate = 44100;
 #define N_SAMPLE_RATES  TU_ARRAY_SIZE(sample_rates)
 uint16_t byte_per_frame;
 
@@ -55,15 +56,15 @@ uint32_t* const mic_buf_lo = (uint32_t*) &mic_buf[0];
 uint32_t* const mic_buf_hi = (uint32_t*) &mic_buf[mic_buf_size/2];
 
 // Buffer for speaker data
-const uint16_t spk_buf_size = 32;
-int32_t spk_buf[spk_buf_size];
+const uint16_t SPK_BUF_SIZE = 96*4;
+uint32_t spk_buf[SPK_BUF_SIZE];
 // easier to read while debugging 16-bit mode
-extern int16_t spk_buf16[spk_buf_size*2] __attribute__ ((alias ("spk_buf")));
+extern int16_t spk_buf16[SPK_BUF_SIZE*2] __attribute__ ((alias ("spk_buf")));
+uint16_t spk_rd_idx;
+uint16_t spk_wr_idx;
+uint16_t spk_loaded;
 
-uint32_t* const spk_buf_lo = (uint32_t*) &spk_buf[0];
-uint32_t* const spk_buf_hi = (uint32_t*) &spk_buf[spk_buf_size/2];
-
-// Speaker data size received in the last frame
+// Speaker data waiting in USB section of RAM
 int16_t spk_data_new;
 
 // Resolution per format
@@ -107,14 +108,24 @@ static bool tud_audio_clock_set_request(uint8_t rhport, audio_control_request_t 
 
 	if (request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ){
 		current_sample_rate = ((audio_control_cur_4_t const *)buf)->bCur;
+		real_sample_rate = current_sample_rate;
 
 		i2s_set_samplerate(current_sample_rate);
 
 		// TODO?
-		if (current_resolution_in == 24){
-			byte_per_frame = current_sample_rate * 2 * 32 / 8000;
+		uint8_t curr_res;
+		if (spk_active){
+			curr_res = current_resolution_out;
 		} else {
-			byte_per_frame = current_sample_rate * 2 * current_resolution_in / 8000;
+			curr_res = current_resolution_in;
+		}
+		const uint32_t rate2byte = (2 << 16) / 8000; // 16.16 fixed point for (2 / 8000)
+		if (curr_res == 24){
+			uint32_t temp = current_sample_rate * 32 * rate2byte;
+			byte_per_frame = temp >> 16;
+		} else {
+			uint32_t temp = current_sample_rate * curr_res * rate2byte;
+			byte_per_frame = temp >> 16;
 		}
 
 		return true;
@@ -226,8 +237,14 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 
 		// Clear buffer when streaming format is changed
 		spk_data_new = 0;
-		//i2s_tx_descriptor_a->btctrl.valid = 0;
-		//i2s_tx_descriptor_b->btctrl.valid = 0;
+		const uint32_t rate2byte = (2 << 16) / 8000; // 16.16 fixed point for (2 / 8000)
+		if (current_resolution_out == 24){
+			uint32_t temp = current_sample_rate * 32 * rate2byte;
+			byte_per_frame = temp >> 16;
+		} else {
+			uint32_t temp = current_sample_rate * current_resolution_out * rate2byte;
+			byte_per_frame = temp >> 16;
+		}
 		if (!spk_active && !mic_active){
 			i2s_start();
 		}
@@ -238,10 +255,15 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 		current_resolution_in = resolutions_per_format[alt-1];
 		//i2s_set_input_wordsize(current_resolution_in);	// TODO
 		// TODO?
+		if (!spk_active){
+			const uint32_t rate2byte = (2 << 16) / 8000; // 16.16 fixed point for (2 / 8000)
 		if (current_resolution_in == 24){
-			byte_per_frame = current_sample_rate * 2 * 32 / 8000;
+				uint32_t temp = current_sample_rate * 32 * rate2byte;
+				byte_per_frame = temp >> 16;
 		} else {
-			byte_per_frame = current_sample_rate * 2 * current_resolution_in / 8000;
+				uint32_t temp = current_sample_rate * current_resolution_in * rate2byte;
+				byte_per_frame = temp >> 16;
+			}
 		}
 
 		//i2s_rx_descriptor_a->btctrl.valid = 0;
@@ -279,10 +301,11 @@ bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, ui
 	(void)ep_out;
 	(void)cur_alt_setting;
 
-	const uint32_t midPoint = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 2;
-	int32_t delta = spk_data_new - midPoint;
-
-	//i2s_adjust_freq(pid_step(delta));	// TODO
+	int32_t delta = pid_step(spk_loaded + spk_data_new - byte_per_frame);
+	if (delta != 0){
+		real_sample_rate += delta;
+		//i2s_set_samplerate(real_sample_rate);
+	}
 
 	spk_data_new += n_bytes_received;
 
@@ -301,9 +324,11 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 	avg_bytes_copied >>= 1;
 
 	if (!spk_active){
-		int32_t delta = byte_per_frame - avg_bytes_copied;
-
-		//i2s_adjust_freq(pid_step(delta));	// TODO
+		int32_t delta = pid_step(byte_per_frame - avg_bytes_copied);
+		if (delta != 0){
+			real_sample_rate += delta;
+			//i2s_set_samplerate(real_sample_rate);
+		}
 	}
 
 	return true;
@@ -332,20 +357,84 @@ void audio_init(){
     i2s_program_init(pio0, &conf, i2s_callback);
 }
 
-// TODO: samplerate mismatch
+void load_audio_buff(){
+	// Pull data from USB memory before it gets overwritten
+	if (spk_data_new != 0){
+		uint16_t buf_avail = SPK_BUF_SIZE - spk_loaded;
+		uint16_t buf_end = SPK_BUF_SIZE - spk_wr_idx;
+		if (buf_avail == 0){
+			return;
+		}
+		if (buf_avail > buf_end){
+			buf_avail = buf_end;
+		}
+		uint16_t loaded;
+		if (current_resolution_out == 16) {
+			uint16_t sample16_buff[SPK_BUF_SIZE/2];
+			loaded = tud_audio_read(sample16_buff, buf_avail*2);
+			spk_data_new -= loaded;
+			loaded >>= 1;
+			for (uint16_t i = 0; i < loaded; i++){
+				spk_buf[spk_wr_idx] = sample16_buff[i];
+				spk_buf[spk_wr_idx] <<= 16;
+				spk_wr_idx++;
+			}
+		} else {
+			loaded = tud_audio_read(&spk_buf[spk_wr_idx], buf_avail*4);
+			spk_data_new -= loaded;
+			loaded >>= 2;
+			spk_wr_idx += loaded;
+		}
+		spk_loaded += loaded;
+		if (loaded == 0){
+			// We have lost data at some point
+			spk_data_new = 0;
+		}
+		if (spk_wr_idx >= SPK_BUF_SIZE) {
+			spk_wr_idx = 0;
+		}
+	}
+}
+
+// Last sample which was output to avoid pop if we run out of samples
+uint32_t last_sampleL = 0x8000'0000;
+uint32_t last_sampleR = 0x8000'0000;
+
 void audio_task(void){
+	load_audio_buff();
 	if (i2s_buff_swapped){
 		i2s_buff_swapped = 0;
 		uint32_t temp[STEREO_BUFFER_SIZE];
-		// TODO: data format
-		uint8_t wordsize = current_resolution_out == 16 ? 2 : 4;
-		if (spk_data_new >= STEREO_BUFFER_SIZE*wordsize){
-			uint8_t new_data_size;
-			new_data_size = tud_audio_read(temp, STEREO_BUFFER_SIZE*wordsize);
-			// TODO: 16-bit data must be split into 32-bit words
+		if (spk_loaded >= STEREO_BUFFER_SIZE){
+			uint16_t load_end = SPK_BUF_SIZE - spk_rd_idx;
+			if (load_end > STEREO_BUFFER_SIZE){
+				i2s_write_buff(&spk_buf[spk_rd_idx]);
+				spk_rd_idx += STEREO_BUFFER_SIZE;
+				if (spk_rd_idx >= SPK_BUF_SIZE){
+					spk_rd_idx = 0;
+				}
+			} else {
+				// Load from buffer
+				uint8_t i;
+				for (i = 0; i < load_end; i++){
+					temp[i] = spk_buf[spk_rd_idx++];
+				}
+				spk_rd_idx = 0;
+				for (; i < STEREO_BUFFER_SIZE; i++){
+					temp[i] = spk_buf[spk_rd_idx++];
+				}
 			i2s_write_buff(temp);
+			}
+			last_sampleL = temp[STEREO_BUFFER_SIZE-2];
+			last_sampleR = temp[STEREO_BUFFER_SIZE-1];
+			spk_loaded -= STEREO_BUFFER_SIZE;
 		} else {
-			// TODO Write dummy data?
+			// Write dummy data
+			for (uint8_t i = 0; i < STEREO_BUFFER_SIZE; i += 2){
+				temp[i] = last_sampleL;
+				temp[i+1] = last_sampleR;
+			}
+			i2s_write_buff(temp);
 		}
 		if (mic_active){
 			wordsize = current_resolution_in == 16 ? 2 : 4;
