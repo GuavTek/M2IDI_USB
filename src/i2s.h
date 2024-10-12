@@ -5,8 +5,10 @@
 #ifndef I2S_TEST_I2S_H
 #define I2S_TEST_I2S_H
 
-#define AUDIO_BUFFER_FRAMES 96
-#define STEREO_BUFFER_SIZE  AUDIO_BUFFER_FRAMES * 2  // roughly 1ms
+// roughly 1ms of audio with the slowest speed (44.1kHz)
+// Windows does not handle empty mic packets well
+#define AUDIO_BUFFER_FRAMES 44
+#define STEREO_BUFFER_SIZE  AUDIO_BUFFER_FRAMES * 2
 
 typedef struct i2s_config {
     uint32_t fs;
