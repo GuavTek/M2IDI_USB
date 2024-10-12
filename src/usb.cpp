@@ -41,6 +41,7 @@ void USB_Service(){
 			tud_connect();
 		}
 	}
+	// TODO: Why does MIDI stream stop working when going from device to host mode
 	// Detect usb status
 	if(gpio_get(USB_ID_PIN)){
 		if (!host_active) {

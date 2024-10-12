@@ -41,19 +41,11 @@ enum
 	VOLUME_CTRL_SILENCE = 0x8000,
 };
 
+// TODO: audio volume for speaker is not implemented
 // Audio controls
 // Current states
 int8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];       // +1 for master channel 0
 int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];    // +1 for master channel 0
-
-// TODO i2s library handles double buffering, do we need more buffering here?
-// Buffer for microphone data
-const uint16_t mic_buf_size = 32;
-int32_t mic_buf[mic_buf_size];
-// easier to read while debugging 16-bit mode
-extern int16_t mic_buf16[mic_buf_size*2] __attribute__ ((alias ("mic_buf")));
-uint32_t* const mic_buf_lo = (uint32_t*) &mic_buf[0];
-uint32_t* const mic_buf_hi = (uint32_t*) &mic_buf[mic_buf_size/2];
 
 // Buffer for speaker data
 const uint16_t SPK_BUF_SIZE = 96*4;
@@ -79,9 +71,11 @@ static bool tud_audio_clock_get_request(uint8_t rhport, audio_control_request_t 
 
 	if (request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ){
 		if (request->bRequest == AUDIO_CS_REQ_CUR){
+			// Host requested current sample rate
 			audio_control_cur_4_t curf = { tu_htole32(current_sample_rate) };
 			return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &curf, sizeof(curf));
 		} else if (request->bRequest == AUDIO_CS_REQ_RANGE){
+			// Host requested all available sample rates
 			audio_control_range_4_n_t(N_SAMPLE_RATES) rangef = {
 				.wNumSubRanges = tu_htole16(N_SAMPLE_RATES)
 			};
@@ -93,9 +87,8 @@ static bool tud_audio_clock_get_request(uint8_t rhport, audio_control_request_t 
 
 			return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &rangef, sizeof(rangef));
 		}
-	}
-	else if (request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID &&
-	request->bRequest == AUDIO_CS_REQ_CUR){
+	} else if (request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID && request->bRequest == AUDIO_CS_REQ_CUR){
+		// Host requested which sample rates are valid with the current config
 		audio_control_cur_1_t cur_valid = { .bCur = 1 };
 		return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &cur_valid, sizeof(cur_valid));
 	}
@@ -233,7 +226,6 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 
 	if (ITF_NUM_AUDIO_STREAMING_SPK == itf && alt != 0) {
 		current_resolution_out = resolutions_per_format[alt-1];
-		//i2s_set_output_wordsize(current_resolution_out);	// TODO
 
 		// Clear buffer when streaming format is changed
 		spk_data_new = 0;
@@ -253,21 +245,18 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 
 	if (ITF_NUM_AUDIO_STREAMING_MIC == itf && alt != 0) {
 		current_resolution_in = resolutions_per_format[alt-1];
-		//i2s_set_input_wordsize(current_resolution_in);	// TODO
 		// TODO?
 		if (!spk_active){
 			const uint32_t rate2byte = (2 << 16) / 8000; // 16.16 fixed point for (2 / 8000)
-		if (current_resolution_in == 24){
+			if (current_resolution_in == 24){
 				uint32_t temp = current_sample_rate * 32 * rate2byte;
 				byte_per_frame = temp >> 16;
-		} else {
+			} else {
 				uint32_t temp = current_sample_rate * current_resolution_in * rate2byte;
 				byte_per_frame = temp >> 16;
 			}
 		}
 
-		//i2s_rx_descriptor_a->btctrl.valid = 0;
-		//i2s_rx_descriptor_b->btctrl.valid = 0;
 		if (!spk_active && !mic_active){
 			i2s_start();
 		}
@@ -423,7 +412,7 @@ void audio_task(void){
 				for (; i < STEREO_BUFFER_SIZE; i++){
 					temp[i] = spk_buf[spk_rd_idx++];
 				}
-			i2s_write_buff(temp);
+				i2s_write_buff(temp);
 			}
 			last_sampleL = temp[STEREO_BUFFER_SIZE-2];
 			last_sampleR = temp[STEREO_BUFFER_SIZE-1];
@@ -447,7 +436,7 @@ void audio_task(void){
 				tud_audio_write(buff16, STEREO_BUFFER_SIZE * 2);
 			} else {
 				tud_audio_write(temp, STEREO_BUFFER_SIZE * 4);
-		}
+			}
 		}
 	}
 }
