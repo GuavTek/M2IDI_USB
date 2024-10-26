@@ -107,7 +107,7 @@ int main(void){
 			outMsg.dataLengthCode = CAN.Get_DLC(numBytes);
 			outMsg.id = (midiID & 0x7F)|(int(sendingGroup) << 7);
 			outMsg.payload = buff;
-			outMsg.bitrateSwitch = false;
+			outMsg.bitrateSwitch = false; // TODO: fix datarate
 			CAN.Write_Message(&outMsg, 2);
 			CAN.Send_Message();
 

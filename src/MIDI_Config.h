@@ -127,8 +127,8 @@ const CAN_Config_t CAN_CONF = {
 	.nominalTSEG2 = 1,			// Time segment 2 = 2 Tq
 	.nominalSyncJump = 0,		// Sync jump width = 1 Tq
 	.dataBaudPrescaler = 0,		// Time quanta Tq = 1/20MHz = 50ns
-	.dataTSEG1 = 1,				// 2 Tq
-	.dataTSEG2 = 1,				// 2 Tq
+	.dataTSEG1 = 2,				// 3 Tq
+	.dataTSEG2 = 0,				// 1 Tq
 	.dataSyncJump = 0,			// 1 Tq
 	.enableEdgeFilter = true,
 	.enableSID11 = false,
