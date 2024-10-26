@@ -34,8 +34,6 @@ MIDI_C MIDI_USB(1);
 MIDI_C MIDI_CAN(2);
 
 uint32_t midiID = 239;
-MIDI_UMP_t lostMsg;
-bool hasLost;
 
 int main(void){
 	// Board init
@@ -75,93 +73,44 @@ int main(void){
 		if (CAN.Ready()){
 			check_can_int();
 		}
-		if (canBuffer.Count() && CAN.Ready()){
-			static int8_t numBytes = 0;
-			char buff[16];
-			MIDI_UMP_t msg;
-			uint8_t length;
 
-			if (hasLost) {
-				// Recover lost message
-				hasLost = false;
-				msg = lostMsg;
-			} else {
-				canBuffer.Read(&msg);
-			}
-			length = MIDI_CAN.Encode(buff, &msg, 2);
+		if (CAN.Ready() && canBuffer.Count()){
+			int8_t numBytes = 0;
+			int8_t sendingGroup;
+			char buff[64];
 
-			// TODO: this will probably break with multiple devices
-			if (msg.type == MIDI_MT_E::Data128) {
+			memset(buff, 0, 64);
+
+			// Load data in CAN
+			// TODO: Reorder messages from other groups
+			// TODO: Check if CAN controller memory is full
+			while (canBuffer.Count()){
+				MIDI_UMP_t msg;
 				if (numBytes == 0){
-					// Send first UMP
-					CAN_Tx_msg_t outMsg;
-					outMsg.dataLengthCode = CAN.Get_DLC(length);
-					outMsg.id = (midiID & 0x7F)|(int(MIDI_MT_E::Data128) << 7);
-					outMsg.payload = buff;
-					outMsg.bitrateSwitch = true;
-					CAN.Write_Message(&outMsg, 2);
+					canBuffer.Read(&msg);
+					sendingGroup = msg.com.group;
 				} else {
-					CAN.Append_Payload(buff, length);
+					// Peek in buffer to check if the group of the next message is the same
+					// And that the buffer can hold the data
+					canBuffer.Peek(&msg);
+					uint8_t msgSize = get_ump_size((uint8_t) msg.type);
+					if ((sendingGroup != msg.com.group)||((msgSize+numBytes) > 64)){
+						break;
+					}
+					canBuffer.IncrementRd();
 				}
+				uint8_t length = MIDI_CAN.Encode(&buff[numBytes], &msg, 2);
 				numBytes += length;
-				if (msg.data128.status == MIDI2_DATA128_E::Single){
-					CAN.Send_Message();
-					numBytes = 0;
-				} else if (msg.data128.status == MIDI2_DATA128_E::End){
-					CAN.Send_Message();
-					numBytes = 0;
-				} else if (numBytes > 56){
-					CAN.Send_Message();
-					numBytes = 0;
-				}
-			} else if (msg.type == MIDI_MT_E::Data64){
-				if (numBytes == 0){
-					// Send first UMP
-					CAN_Tx_msg_t outMsg;
-					outMsg.dataLengthCode = CAN.Get_DLC(length);
-					outMsg.id = (midiID & 0x7F)|(int(MIDI_MT_E::Data64) << 7);
-					outMsg.payload = buff;
-					outMsg.bitrateSwitch = true;
-					CAN.Write_Message(&outMsg, 2);
-				} else {
-					CAN.Append_Payload(buff, length);
-				}
-				numBytes += length;
-				if (msg.data64.status == MIDI2_DATA64_E::Single){
-					CAN.Send_Message();
-					numBytes = 0;
-				} else if (msg.data64.status == MIDI2_DATA64_E::End){
-					CAN.Send_Message();
-					numBytes = 0;
-				} else if (numBytes > 56){
-					CAN.Send_Message();
-					numBytes = 0;
-				}
-			} else if (msg.type == MIDI_MT_E::RealTime){
-				if (numBytes != 0){
-					// In the middle of sysex
-					CAN.Send_Message();
-					numBytes = 0;
-					lostMsg = msg;
-					hasLost = true;
-				} else {
-					// Send CAN message
-					CAN_Tx_msg_t outMsg;
-					outMsg.dataLengthCode = CAN.Get_DLC(length);
-					outMsg.id = (midiID & 0x7F)|(int(MIDI_MT_E::RealTime) << 7);
-					outMsg.payload = buff;
-					CAN.Write_Message(&outMsg, 2);
-					CAN.Send_Message();
-				}
-			} else {
-				// Send CAN message
-				CAN_Tx_msg_t outMsg;
-				outMsg.dataLengthCode = CAN.Get_DLC(length);
-				outMsg.id = (midiID & 0x7F)|(int(msg.type) << 7);
-				outMsg.payload = buff;
-				CAN.Write_Message(&outMsg, 2);
-				CAN.Send_Message();
 			}
+
+			CAN_Tx_msg_t outMsg;
+			outMsg.dataLengthCode = CAN.Get_DLC(numBytes);
+			outMsg.id = (midiID & 0x7F)|(int(sendingGroup) << 7);
+			outMsg.payload = buff;
+			outMsg.bitrateSwitch = false;
+			CAN.Write_Message(&outMsg, 2);
+			CAN.Send_Message();
+
 		}
 
 		static uint32_t timrr = 0;

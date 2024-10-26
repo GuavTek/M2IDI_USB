@@ -37,22 +37,14 @@ uint8_t get_ump_size(uint8_t ump_type){
 }
 
 // Define CAN filters
+// This module needs to listen to all messages on the bus
 const CAN_Filter_t CAN_FLT0 = {
 	.enabled = true,
 	.fifoDestination = 1,
 	.extendedID = false,
-	.ID = (0 << 10),
-	.matchBothIDTypes = false,
-	.maskID = 1 << 10
-};
-
-const CAN_Filter_t CAN_FLT1 = {
-	.enabled = true,
-	.fifoDestination = 1,
-	.extendedID = false,
-	.ID = (1 << 10) | 6969,
-	.matchBothIDTypes = false,
-	.maskID = 0x7ff
+	.ID = 0,
+	.matchBothIDTypes = true,
+	.maskID = 0
 };
 
 // Define FIFO configurations
@@ -112,6 +104,7 @@ const spi_config_t SPI_MEM_CONF = {
 	.pin_cs = {M2IDI_MEM_SPI_CSN_RAM_PIN, M2IDI_MEM_SPI_CSN_EEPROM_PIN}
 };
 
+// TODO: datarate switch gives a really high failurerate
 const CAN_Config_t CAN_CONF = {
 	.clkOutDiv = CAN_Config_t::clkOutDiv1,
 	.sysClkDiv = false,
