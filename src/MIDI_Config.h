@@ -14,6 +14,28 @@
 #include "SPI_RP2040.h"
 #include "board_m2idi_usb.h"
 
+uint8_t get_ump_size(uint8_t ump_type){
+	switch (ump_type){
+	case 0: return 4;
+	case 1: return 4;
+	case 2: return 4;
+	case 3: return 8;
+	case 4: return 8;
+	case 5: return 16;
+	case 6: return 4;
+	case 7: return 4;
+	case 8: return 8;
+	case 9: return 8;
+	case 10: return 8;
+	case 11: return 12;
+	case 12: return 12;
+	case 13: return 16;
+	case 14: return 16;
+	case 15: return 16;
+	default: return 0;
+	}
+}
+
 // Define CAN filters
 const CAN_Filter_t CAN_FLT0 = {
 	.enabled = true,
