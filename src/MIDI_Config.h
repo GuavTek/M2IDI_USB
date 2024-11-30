@@ -133,11 +133,11 @@ const CAN_Config_t CAN_CONF = {
 	.nominalBaudPrescaler = 1,	// Time quanta prescaler Tq = 2/20MHz = 100ns
 	.nominalTSEG1 = 6,			// Time segment 1 = 7 Tq
 	.nominalTSEG2 = 1,			// Time segment 2 = 2 Tq
-	.nominalSyncJump = 0,		// Sync jump width = 1 Tq
+	.nominalSyncJump = 1,		// Sync jump width = 2 Tq
 	.dataBaudPrescaler = 0,		// Time quanta Tq = 1/20MHz = 50ns
-	.dataTSEG1 = 2,				// 3 Tq
-	.dataTSEG2 = 0,				// 1 Tq
-	.dataSyncJump = 0,			// 1 Tq
+	.dataTSEG1 = 1,				// 2 Tq
+	.dataTSEG2 = 1,				// 2 Tq
+	.dataSyncJump = 1,			// 2 Tq
 	.enableEdgeFilter = true,
 	.enableSID11 = false,
 	.txDelayCompensation = CAN_Config_t::TdcAuto,
