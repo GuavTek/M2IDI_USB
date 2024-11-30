@@ -168,23 +168,6 @@ void check_can_int(){
 	}
 }
 
-/*
-void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
-	char tempData[16];
-	uint8_t length;
-	length = MIDI_USB.Encode(tempData, msg, MIDI_USB.Get_Version());
-
-	if (length > 0){
-		usb_midi_tx(tempData, length);
-	}
-}
-
-// Handle USB midi data
-void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
-	msg->com.group = 1;
-	canBuffer.Write(msg);
-}/**/
-
 void midi_stream_discovery(uint8_t majVer, uint8_t minVer, uint8_t filter){
 	//Upon Recieving the filter it is important to return the information requested
 	if(filter & 0x1){ //Endpoint Info Notification
@@ -225,6 +208,12 @@ void midi_stream_discovery(uint8_t majVer, uint8_t minVer, uint8_t filter){
 }
 
 void midi_task(void){
+	static int8_t umpLen = 0;
+	static uint8_t umpGroup;
+	if (!host_active && !tud_mounted()){
+		umpLen = 0;
+	}
+	MIDI_BS2UMP.defaultGroup = 1;
 	// Read MIDI data from USB
 	if (host_active){
 		// Host mode
@@ -239,7 +228,18 @@ void midi_task(void){
 						MIDI_BS2UMP.bytestreamParse(buffer[j]);
 						while(MIDI_BS2UMP.availableUMP()){
 							uint32_t temp = MIDI_BS2UMP.readUMP();
-
+							if (umpLen <= 0){
+								uint8_t tp = get_ump_type(temp);
+								umpLen = get_ump_size(tp);
+								if ((tp == UMP_UTILITY)||(tp == UMP_MIDI_ENDPOINT)){
+									// Groupless messages
+									umpGroup = 16;
+								} else {
+									umpGroup = get_ump_group(temp);
+								}
+							}
+							umpLen -= 4;
+							canBuffer[umpGroup].Write(&temp);
 						}
 					}
 					// TODO: send data to other devices
@@ -249,11 +249,28 @@ void midi_task(void){
 		}
 	} else {
 		// Device mode
-		uint8_t packet[16];
-		uint8_t length;
+		uint8_t buffer[16];
+		uint8_t bytesRead;
 		while ( tud_midi_available() ) {
-			length = tud_midi_stream_read(packet, 16);
-			//MIDI_USB.Decode((char*)(packet), length);
+			bytesRead = tud_midi_stream_read(buffer, 16);
+			for (uint8_t j = 0; j < bytesRead; j++){
+				MIDI_BS2UMP.bytestreamParse(buffer[j]);
+				while(MIDI_BS2UMP.availableUMP()){
+					uint32_t temp = MIDI_BS2UMP.readUMP();
+					if (umpLen <= 0){
+						uint8_t tp = get_ump_type(temp);
+						umpLen = get_ump_size(tp);
+						if ((tp == UMP_UTILITY)||(tp == UMP_MIDI_ENDPOINT)){
+							// Groupless messages
+							umpGroup = 16;
+						} else {
+							umpGroup = get_ump_group(temp);
+						}
+					}
+					umpLen -= 4;
+					canBuffer[umpGroup].Write(&temp);
+				}
+			}
 		}
 	}
 	// Write MIDI data to USB
@@ -264,11 +281,24 @@ void midi_task(void){
 	// TODO: this may send incomplete messages
 	if (buffLen){
 		char buff[64];
+		char umpBuff[64];
 		for (uint8_t i = 0; i < buffLen; i++){
-			usbBuffer.Read(&buff[i]);
+			usbBuffer.Read(&umpBuff[i]);
 		}
+		buffLen >>= 2;
+		uint32_t length = 0;
+		for (uint8_t i = 0; i < buffLen; i++){
+			uint32_t temp;
+			uint8_t ii = i*4;
+			temp = (umpBuff[ii] << 24)|(umpBuff[ii+1] << 16)|(umpBuff[ii+2] << 8)|umpBuff[ii+3];
+			MIDI_UMP2BS.UMPStreamParse(temp);
+			while (MIDI_UMP2BS.availableBS()){
+				buff[length++] = MIDI_UMP2BS.readBS();
+			}
+		}
+
 		// TODO: What to do if data is not accepted by USB driver
-		uint32_t length = usb_midi_tx(buff, buffLen);
+		length = usb_midi_tx(buff, length);
 	}
 }
 
