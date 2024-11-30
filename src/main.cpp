@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "pico/stdlib.h"
 #include <hardware/clocks.h>
 #include <hardware/spi.h>
@@ -8,7 +9,9 @@
 #include "MIDI_Config.h"
 #include "SPI_RP2040.h"
 #include "MCP2517.h"
-#include "MIDI_Driver.h"
+#include "umpProcessor.h"
+#include "bytestreamToUMP.h"
+#include "umpToBytestream.h"
 #include "audio_driver.h"
 #include "usb.h"
 #include <tusb.h>
@@ -17,7 +20,8 @@
 
 SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1, 1);
 MCP2517_C CAN = MCP2517_C(&SPI_CAN, 0);
-RingBuffer<8, MIDI_UMP_t> canBuffer;
+RingBuffer<32, uint32_t> canBuffer[17];
+RingBuffer<128, char> usbBuffer;
 
 void dma1_irq_handler();
 void CAN_Receive_Header(CAN_Rx_msg_t* data);
@@ -27,11 +31,11 @@ void midi_task(void);
 void audio_dma_init();
 void check_can_int();
 
-void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg);
-void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg);
+void midi_stream_discovery(uint8_t majVer, uint8_t minVer, uint8_t filter);
 
-MIDI_C MIDI_USB(1);
-MIDI_C MIDI_CAN(2);
+umpProcessor MIDI_PROC;
+bytestreamToUMP MIDI_BS2UMP;
+umpToBytestream MIDI_UMP2BS;
 
 uint32_t midiID = 239;
 
@@ -54,8 +58,7 @@ int main(void){
 	USB_Init();
 	audio_init();
 
-	MIDI_CAN.Set_handler(MIDI_CAN_UMP_handler);
-	MIDI_USB.Set_handler(MIDI_USB_UMP_handler);
+	MIDI_PROC.setMidiEndpoint(midi_stream_discovery);
 
 	// Enable SPI interrupt
 	irq_set_exclusive_handler(DMA_IRQ_1, dma1_irq_handler);
@@ -66,6 +69,7 @@ int main(void){
 	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
 
     while (true){
+		static uint8_t currentBuffer = 0;
 		audio_task();
 		midi_task();
 		USB_Service();
@@ -74,7 +78,7 @@ int main(void){
 			check_can_int();
 		}
 
-		if (CAN.Ready() && canBuffer.Count()){
+		if (CAN.Ready() && canBuffer[currentBuffer].Count()){
 			int8_t numBytes = 0;
 			int8_t sendingGroup;
 			char buff[64];
@@ -82,35 +86,47 @@ int main(void){
 			memset(buff, 0, 64);
 
 			// Load data in CAN
-			// TODO: Reorder messages from other groups
 			// TODO: Check if CAN controller memory is full
-			while (canBuffer.Count()){
-				MIDI_UMP_t msg;
-				if (numBytes == 0){
-					canBuffer.Read(&msg);
-					sendingGroup = msg.com.group;
-				} else {
-					// Peek in buffer to check if the group of the next message is the same
-					// And that the buffer can hold the data
-					canBuffer.Peek(&msg);
-					uint8_t msgSize = get_ump_size((uint8_t) msg.type);
-					if ((sendingGroup != msg.com.group)||((msgSize+numBytes) > 64)){
-						break;
-					}
-					canBuffer.IncrementRd();
+			while (canBuffer[currentBuffer].Count()){
+				// Peek in buffer to check length
+				uint8_t msgLen;
+				uint8_t wordLen;
+				uint32_t msgWord;
+				canBuffer[currentBuffer].Peek(&msgWord);
+				msgLen = get_ump_size(get_ump_type(msgWord));
+				wordLen = msgLen >> 2;
+				if (canBuffer[currentBuffer].Count() < wordLen){
+					// Message incomplete
+					break;
+				} else if ((msgLen+numBytes) > 64){
+					// Message does not fit in buffer
+					break;
 				}
-				uint8_t length = MIDI_CAN.Encode(&buff[numBytes], &msg, 2);
-				numBytes += length;
+				// Copy bytes
+				for (uint8_t i = 0; i < wordLen; i++){
+					canBuffer[currentBuffer].Read(&msgWord);
+					buff[numBytes++] = (msgWord >> 24) & 0xff;
+					buff[numBytes++] = (msgWord >> 16) & 0xff;
+					buff[numBytes++] = (msgWord >>  8) & 0xff;
+					buff[numBytes++] = msgWord & 0xff;
+				}
 			}
 
-			CAN_Tx_msg_t outMsg;
-			outMsg.dataLengthCode = CAN.Get_DLC(numBytes);
-			outMsg.id = (midiID & 0x7F)|(int(sendingGroup) << 7);
-			outMsg.payload = buff;
-			outMsg.bitrateSwitch = false; // TODO: fix datarate
-			CAN.Write_Message(&outMsg, 2);
-			CAN.Send_Message();
-
+			if (numBytes > 0){
+				CAN_Tx_msg_t outMsg;
+				outMsg.dataLengthCode = CAN.Get_DLC(numBytes);
+				outMsg.id = (midiID & 0x7F)|((currentBuffer & 0xf) << 7);
+				outMsg.extendedID = (currentBuffer == 16);
+				outMsg.payload = buff;
+				outMsg.bitrateSwitch = false; // TODO: fix datarate
+				CAN.Write_Message(&outMsg, 2);
+				CAN.Send_Message();
+			}
+		}
+		if (currentBuffer == 16){
+			currentBuffer = 0;
+		} else {
+			currentBuffer++;
 		}
 
 		static uint32_t timrr = 0;
@@ -140,7 +156,9 @@ void CAN_Receive_Header(CAN_Rx_msg_t* data){
 // Handle MIDI CAN data
 void CAN_Receive_Data(char* data, uint8_t length){
 	// Receive MIDI payload from CAN
-	MIDI_CAN.Decode(data, length);
+	for (uint8_t i = 0; i < length; i++) {
+		usbBuffer.Write(&data[i]);
+	}
 }
 
 void check_can_int(){
@@ -150,6 +168,7 @@ void check_can_int(){
 	}
 }
 
+/*
 void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 	char tempData[16];
 	uint8_t length;
@@ -164,10 +183,49 @@ void MIDI_CAN_UMP_handler(struct MIDI_UMP_t* msg){
 void MIDI_USB_UMP_handler(struct MIDI_UMP_t* msg){
 	msg->com.group = 1;
 	canBuffer.Write(msg);
+}/**/
+
+void midi_stream_discovery(uint8_t majVer, uint8_t minVer, uint8_t filter){
+	//Upon Recieving the filter it is important to return the information requested
+	if(filter & 0x1){ //Endpoint Info Notification
+		//std::array<uint32_t, 4> ump = UMPMessage::mtFMidiEndpointInfoNotify(1, true, true, false, false);
+		//sendUMP(ump.data(),4);
+	}
+
+	if(filter & 0x2) {
+		//std::array<uint32_t, 4> ump = UMPMessage::mtFMidiEndpointDeviceInfoNotify(
+		//{MIDI_MFRID & 0xff, (MIDI_MFRID >> 8) & 0xff, (MIDI_MFRID >> 16) & 0xff},
+		//{MIDI_FAMID & 0xff, (MIDI_FAMID >> 8) & 0xff},
+		//{DEVICE_MODELID & 0xff, (DEVICE_MODELID >> 8) & 0xff},
+		//{DEVICE_VERSIONID & 0xff, (DEVICE_VERSIONID >> 8) & 0xff, (DEVICE_VERSIONID >> 16) & 0xff, (DEVICE_VERSIONID >> 24) & 0xff});
+		//sendUMP( ump.data(), 4);
+	}
+
+	if(filter & 0x4) {
+		//uint8_t friendlyNameLength = sizeof(DEVICE_NAME);
+		//for(uint8_t offset=0; offset<friendlyNameLength; offset+=14) {
+		//	std::array<uint32_t, 4> ump = UMPMessage::mtFMidiEndpointTextNotify(MIDIENDPOINT_NAME_NOTIFICATION, offset, (uint8_t *) DEVICE_NAME,friendlyNameLength);
+			//sendUMP(ump.data(),4);
+		//}
+	}
+
+	if(filter & 0x8) {
+		// TODO: read MCU unique ID
+		//int8_t piiLength = sizeof(PRODUCT_INSTANCE_ID);
+		//for(uint8_t offset=0; offset<piiLength; offset+=14) {
+		//	std::array<uint32_t, 4> ump = UMPMessage::mtFMidiEndpointTextNotify(PRODUCT_INSTANCE_ID, offset, (uint8_t *) buff,piiLength);
+		//	//sendUMP(ump.data(),4);
+		//}
+	}
+
+	if(filter & 0x10){
+		//std::array<uint32_t, 4> ump = UMPMessage::mtFNotifyProtocol(0x2,false,false);
+		//sendUMP(ump.data(),4);
+	}
 }
 
 void midi_task(void){
-	// Send MIDI data over USB
+	// Read MIDI data from USB
 	if (host_active){
 		// Host mode
 		for (uint8_t i = 0; i < devNum; i++){
@@ -177,7 +235,13 @@ void midi_task(void){
     			uint32_t bytesRead = 69;
 				while(bytesRead){
 					bytesRead = tuh_midi_stream_read(devAddr[i], &cableNum, buffer, sizeof(buffer));
-					MIDI_USB.Decode((char*) buffer, bytesRead);
+					for (uint8_t j = 0; j < bytesRead; j++){
+						MIDI_BS2UMP.bytestreamParse(buffer[j]);
+						while(MIDI_BS2UMP.availableUMP()){
+							uint32_t temp = MIDI_BS2UMP.readUMP();
+
+						}
+					}
 					// TODO: send data to other devices
 				}
 				devPend &= ~(1 << i);
@@ -189,8 +253,22 @@ void midi_task(void){
 		uint8_t length;
 		while ( tud_midi_available() ) {
 			length = tud_midi_stream_read(packet, 16);
-			MIDI_USB.Decode((char*)(packet), length);
+			//MIDI_USB.Decode((char*)(packet), length);
 		}
+	}
+	// Write MIDI data to USB
+	uint16_t buffLen = usbBuffer.Count();
+	if (buffLen > 64){
+		buffLen = 64;
+	}
+	// TODO: this may send incomplete messages
+	if (buffLen){
+		char buff[64];
+		for (uint8_t i = 0; i < buffLen; i++){
+			usbBuffer.Read(&buff[i]);
+		}
+		// TODO: What to do if data is not accepted by USB driver
+		uint32_t length = usb_midi_tx(buff, buffLen);
 	}
 }
 

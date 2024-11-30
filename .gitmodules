@@ -1,9 +1,9 @@
 [submodule "lib/MCP2517_driver"]
 	path = lib/MCP2517_driver
 	url = https://github.com/GuavTek/MCP2517_driver
-[submodule "lib/MIDI_driver"]
-	path = lib/MIDI_driver
-	url = https://github.com/GuavTek/MIDI_driver
 [submodule "lib/midi_host"]
 	path = lib/midi_host
 	url = https://github.com/rppicomidi/usb_midi_host
+[submodule "lib/AM_MIDI2.0Lib"]
+	path = lib/AM_MIDI2.0Lib
+	url = https://github.com/midi2-dev/AM_MIDI2.0Lib

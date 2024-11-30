@@ -14,6 +14,14 @@
 #include "SPI_RP2040.h"
 #include "board_m2idi_usb.h"
 
+uint8_t get_ump_type(uint32_t ump_word){
+	return (ump_word >> 28)  & 0xF;
+}
+
+int8_t get_ump_group(uint32_t ump_word){
+	return (ump_word >> 24) & 0xF;
+}
+
 uint8_t get_ump_size(uint8_t ump_type){
 	switch (ump_type){
 	case 0: return 4;

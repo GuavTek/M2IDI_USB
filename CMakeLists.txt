@@ -33,7 +33,7 @@ set(CMAKE_CXX_FLAGS_RELEASE -O3)
 set(CMAKE_CXX_FLAGS_DEBUG -g)
 
 # Add pico_stdlib library which aggregates commonly used features
-target_link_libraries(M2IDI_USB pico_stdlib pico_unique_id hardware_pio hardware_timer hardware_spi hardware_dma midi_driver mcp2517_driver tinyusb_host usb_midi_host_app_driver tinyusb_device)
+target_link_libraries(M2IDI_USB pico_stdlib pico_unique_id hardware_pio hardware_timer hardware_spi hardware_dma libmidi2 mcp2517_driver tinyusb_host usb_midi_host_app_driver tinyusb_device)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(M2IDI_USB)
