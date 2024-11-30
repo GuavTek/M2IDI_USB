@@ -25,6 +25,8 @@ void USB_Handler(void);
 
 uint32_t usb_midi_tx(char data[], uint32_t length);
 
+uint32_t tusb_time_millis_api(void);
+
 //--------------------------------------------------------------------+
 // Host callbacks
 //--------------------------------------------------------------------+

@@ -68,6 +68,11 @@ void USB_Handler(void){
 	}
 }
 
+// TODO: this has a 2% error
+uint32_t tusb_time_millis_api(void){
+	return time_us_32() >> 10;
+}
+
 uint32_t usb_midi_tx(char data[], uint32_t length){
 	if (host_active){
 		// Host mode
