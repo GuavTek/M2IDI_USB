@@ -35,6 +35,10 @@ MIDI_C MIDI_CAN(2);
 
 uint32_t midiID = 239;
 
+uint32_t tusb_time_millis_api(void){
+	return time_us_64()  / 1000;
+}
+
 int main(void){
 	// Board init
 	set_sys_clock_khz(132000, true);
