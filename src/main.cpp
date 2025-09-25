@@ -41,7 +41,7 @@ uint32_t tusb_time_millis_api(void){
 
 int main(void){
 	// Board init
-	set_sys_clock_khz(132000, true);
+	set_sys_clock_khz(133000, true);
 
 	gpio_init(LEDH);
 	gpio_init(LEDD);
