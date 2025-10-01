@@ -7,3 +7,6 @@
 [submodule "lib/midi_host"]
 	path = lib/midi_host
 	url = https://github.com/rppicomidi/usb_midi_host
+[submodule "lib/tusb_ump"]
+	path = lib/tusb_ump
+	url = https://github.com/midi2-dev/tusb_ump/
