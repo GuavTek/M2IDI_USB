@@ -17,7 +17,7 @@
 
 SPI_RP2040_C SPI_CAN = SPI_RP2040_C(spi1, 1);
 MCP2517_C CAN = MCP2517_C(&SPI_CAN, 0);
-RingBuffer<8, MIDI_UMP_t> canBuffer;
+RingBuffer<16, MIDI_UMP_t> canBuffer;
 
 void dma1_irq_handler();
 void CAN_Receive_Header(CAN_Rx_msg_t* data);
@@ -105,6 +105,7 @@ int main(void){
 				}
 				uint8_t length = MIDI_CAN.Encode(&buff[numBytes], &msg, 2);
 				numBytes += length;
+				break; // TODO: Multiple messages in one frame leads to loss of MIDI data
 			}
 
 			CAN_Tx_msg_t outMsg;
@@ -177,22 +178,22 @@ void midi_task(void){
 		for (uint8_t i = 0; i < devNum; i++){
 			if (devPend & (1 << i)) {
     			uint8_t cableNum;
-    			uint8_t buffer[48];
+    			uint8_t buffer[32];
     			uint32_t bytesRead = 69;
+				devPend &= ~(1 << i);
 				while(bytesRead){
 					bytesRead = tuh_midi_stream_read(devAddr[i], &cableNum, buffer, sizeof(buffer));
 					MIDI_USB.Decode((char*) buffer, bytesRead);
 					// TODO: send data to other devices
 				}
-				devPend &= ~(1 << i);
 			}
 		}
 	} else {
 		// Device mode
-		uint8_t packet[16];
+		uint8_t packet[32];
 		uint8_t length;
 		while ( tud_midi_available() ) {
-			length = tud_midi_stream_read(packet, 16);
+			length = tud_midi_stream_read(packet, sizeof(packet));
 			MIDI_USB.Decode((char*)(packet), length);
 		}
 	}
