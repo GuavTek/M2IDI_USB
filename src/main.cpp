@@ -22,6 +22,7 @@ RingBuffer<16, MIDI_UMP_t> canBuffer;
 void dma1_irq_handler();
 void CAN_Receive_Header(CAN_Rx_msg_t* data);
 void CAN_Receive_Data(char* data, uint8_t length);
+void CAN_FIFO_Status(uint8_t fifoNum, CAN_FIFO_Status_t status);
 void audio_task(void);
 void midi_task(void);
 void audio_dma_init();
@@ -34,6 +35,7 @@ MIDI_C MIDI_USB(1);
 MIDI_C MIDI_CAN(2);
 
 uint32_t midiID = 239;
+bool txFull = 0;
 
 uint32_t tusb_time_millis_api(void){
 	return time_us_64()  / 1000;
@@ -68,6 +70,7 @@ int main(void){
 	CAN.Init(CAN_CONF);
 	CAN.Set_Rx_Header_Callback(CAN_Receive_Header);
 	CAN.Set_Rx_Data_Callback(CAN_Receive_Data);
+	CAN.Set_FIFO_Status_Callback(CAN_FIFO_Status);
 
     while (true){
 		audio_task();
@@ -125,9 +128,9 @@ int main(void){
 			static bool hstate = 0;
 			if (host_active){
 				gpio_put(LEDH, hstate);
-				gpio_put(LEDD, 0);
+				gpio_put(LEDD, txFull);
 			} else {
-				gpio_put(LEDH, 0);
+				gpio_put(LEDH, txFull);
 				gpio_put(LEDD, hstate);
 			}
 			hstate = !hstate;
@@ -146,6 +149,13 @@ void CAN_Receive_Header(CAN_Rx_msg_t* data){
 void CAN_Receive_Data(char* data, uint8_t length){
 	// Receive MIDI payload from CAN
 	MIDI_CAN.Decode(data, length);
+}
+
+void CAN_FIFO_Status(uint8_t fifoNum, CAN_FIFO_Status_t status){
+	// Handle MCP2517 FIFO interrupts
+	if (fifoNum == 2){
+		txFull = !status.tx.notFull;
+	}
 }
 
 void check_can_int(){
